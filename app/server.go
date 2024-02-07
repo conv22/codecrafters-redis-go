@@ -40,10 +40,10 @@ func handleClient(conn net.Conn) {
 	for scanner.Scan() {
 		input := scanner.Text()
 
-		if input == "PING" {
+		if strings.ToLower(input) == "ping" {
 			writer.WriteString(PING_RESPONSE)
-		} else if strings.HasPrefix(input, "ECHO") {
-			result := strings.TrimPrefix(input, "ECHO")
+		} else if strings.HasPrefix(strings.ToLower(input), "echo") {
+			result := strings.TrimPrefix(input, "echo")
 			writer.WriteString(result + "\r\n")
 		}
 
