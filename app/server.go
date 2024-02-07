@@ -43,7 +43,7 @@ func handleClient(conn net.Conn) {
 		if input == "PING" {
 			writer.WriteString(PING_RESPONSE)
 		} else if strings.HasPrefix(input, "ECHO") {
-			result, _ := strings.CutPrefix(input, "ECHO")
+			result := strings.TrimPrefix(input, "ECHO")
 			writer.WriteString(result + "\r\n")
 		}
 
