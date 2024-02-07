@@ -23,12 +23,11 @@ func main() {
 			fmt.Println("Error:", err)
 			continue
 		}
-		handleClient(conn)
+		go handleClient(conn)
 	}
 }
 
 func handleClient(conn net.Conn) {
-
 	defer conn.Close()
 
 	buf := make([]byte, 1024)
