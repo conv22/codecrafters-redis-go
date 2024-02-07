@@ -28,7 +28,6 @@ func main() {
 }
 
 func handleClient(conn net.Conn) {
-	// Ensure we close the connection after we're done
 	defer conn.Close()
 
 	conn.Write([]byte("+PONG\r\n"))
