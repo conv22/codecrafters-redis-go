@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -30,25 +32,30 @@ func main() {
 func handleClient(conn net.Conn) {
 	defer conn.Close()
 
-	buf := make([]byte, 1024)
+	scanner := bufio.NewScanner(conn)
+	writer := bufio.NewWriter(conn)
 
-	for {
-		n, err := conn.Read(buf)
+	PING_RESPONSE := "+PONG\r\n"
 
-		if err != nil {
-			fmt.Println("Error:", err)
-			continue
+	for scanner.Scan() {
+		input := scanner.Text()
+
+		if input == "PING" {
+			writer.WriteString(PING_RESPONSE)
+		} else if strings.HasPrefix(input, "ECHO") {
+			result, _ := strings.CutPrefix(input, "ECHO")
+			writer.WriteString(result + "\r\n")
 		}
 
-		msg := string(buf[:n])
-		fmt.Printf("%s message received", msg)
-
-		response := "+PONG\r\n"
-		_, err = conn.Write([]byte(response))
-		if err != nil {
-			fmt.Println("Error writing:", err)
+		if err := writer.Flush(); err != nil {
+			fmt.Println("Error flushing writer:", err)
 			return
 		}
+
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error scanning user input")
 	}
 
 }
