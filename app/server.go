@@ -2,13 +2,13 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
+
+	parser "github.com/codecrafters-io/redis-starter-go/app/parsers"
 )
 
 func main() {
@@ -32,82 +32,51 @@ func main() {
 	}
 }
 
-func parseResp(s string) ([]string, error) {
-	clone := strings.Clone(s)
-	const TERMINATOR = "\r\n"
-	const ITEM_COUNT = "*"
-	const ITEM_LENGTH = "$"
-
-	first_item_index := strings.Index(clone, TERMINATOR)
-
-	if first_item_index == -1 {
-		return nil, errors.New("not valid string")
-	}
-
-	total_items_count, err := strconv.Atoi(clone[1:first_item_index])
-
-	if err != nil {
-		return nil, err
-	}
-
-	clone = clone[(first_item_index + len(TERMINATOR)):]
-	curr_count := 0
-	curr_item_length := 0
-	words := make([]string, 0, total_items_count)
-
-	for curr_count < total_items_count {
-		if strings.HasPrefix(clone, ITEM_LENGTH) {
-			first_item_index := strings.Index(clone, TERMINATOR)
-
-			total_chars_count, err := strconv.Atoi(clone[1:first_item_index])
-			if err != nil {
-				return nil, err
-			}
-			clone = clone[first_item_index+len(TERMINATOR):]
-			curr_item_length = total_chars_count
-			continue
-		}
-		words = append(words, clone[0:curr_item_length])
-		clone = clone[(len(TERMINATOR) + curr_item_length):]
-		curr_count++
-	}
-
-	return words, nil
-
-}
-
 func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 	defer conn.Close()
 	defer wg.Done()
 
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
+	parser := parser.CreateParser("resp")
 
-	PING_RESPONSE := "+PONG\r\n"
-	buffer := make([]byte, 1024)
 	for {
-		n, err := reader.Read(buffer)
+		line, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Println("Error reading from connection:", err)
-			return
+			break
 		}
 
-		input := string(buffer[:n])
+		line = strings.TrimSpace(line)
 
-		input = strings.TrimSpace(input)
-
-		if strings.ToLower(input) == "ping" {
-			writer.WriteString(PING_RESPONSE)
-		} else if values, err := parseResp(input); err == nil {
-			if len(values) == 2 && strings.ToLower(values[0]) == "echo" {
-				msg := "+" + values[1] + "\r\n"
-				writer.WriteString(msg)
+		write := func() string {
+			if strings.EqualFold(line, "ping") {
+				return "+PONG\r\n"
 			}
+			result, err := parser.HandleParse(line)
+			// echo cmd
+			if err == nil {
+				if len(result) >= 2 {
+					if strings.EqualFold(result[0], "echo") {
+						return "+" + result[1] + "\r\n"
+					}
+				}
+			}
+
+			return line
+		}()
+
+		_, err = writer.WriteString(write)
+
+		if err != nil {
+			fmt.Println("Error writing to connection:", err)
+			break
 		}
 
 		if err := writer.Flush(); err != nil {
-			fmt.Println("Error flushing writer:", err)
-			return
+			fmt.Println("Error flushing buffer:", err)
+			break
 		}
 	}
+
 }
