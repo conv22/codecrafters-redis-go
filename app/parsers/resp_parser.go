@@ -55,7 +55,7 @@ func (parser *RespParser) parseBulkString(s string) (string, error) {
 	}
 
 	value := s[separatorIndex+len(Separator):]
-	if charCount > len(value) {
+	if (len(value) + len(Separator)) < charCount {
 		return "", errors.New("bulk string length exceeds available data")
 	}
 
@@ -78,7 +78,14 @@ func (parser *RespParser) parseValue(s string) (string, error) {
 	}
 }
 
+func (parser *RespParser) resetParser() {
+	parser.totalLength = 0
+	parser.result = []string{}
+}
+
 func (parser *RespParser) HandleParse(s string) ([]string, error) {
+	parser.resetParser()
+
 	if len(s) == 0 {
 		return parser.result, nil
 	}

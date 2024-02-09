@@ -27,7 +27,7 @@ func TestParseRESPV2(t *testing.T) {
 		{
 			name:           "Empty input",
 			input:          "",
-			expectedOutput: nil,
+			expectedOutput: []string{},
 			expectError:    false,
 		},
 		{
@@ -44,9 +44,10 @@ func TestParseRESPV2(t *testing.T) {
 		},
 	}
 
+	p := &RespParser{}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			p := &RespParser{}
 			result, err := p.HandleParse(test.input)
 
 			// Check for error

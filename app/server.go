@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -36,47 +38,45 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 	defer conn.Close()
 	defer wg.Done()
 
-	reader := bufio.NewReader(conn)
-	writer := bufio.NewWriter(conn)
 	parser := parser.CreateParser("resp")
+	writer := bufio.NewWriter(conn)
+	buf := make([]byte, 1024)
 
 	for {
-		line, err := reader.ReadString('\n')
+		bytesRead, err := conn.Read(buf)
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
 			fmt.Println("Error reading from connection:", err)
 			break
 		}
 
-		line = strings.TrimSpace(line)
+		line := string(buf[:bytesRead])
 
 		write := func() string {
-			if strings.EqualFold(line, "ping") {
+			parserResult, err := parser.HandleParse(line)
+			if err != nil || len(parserResult) == 0 {
+				return line
+			}
+
+			firstCmd := parserResult[0]
+
+			if strings.EqualFold(firstCmd, "ping") {
 				return "+PONG\r\n"
 			}
-			result, err := parser.HandleParse(line)
-			// echo cmd
-			if err == nil {
-				if len(result) >= 2 {
-					if strings.EqualFold(result[0], "echo") {
-						return "+" + result[1] + "\r\n"
-					}
-				}
+
+			if len(parserResult) >= 2 && strings.EqualFold(firstCmd, "echo") {
+				return "+" + parserResult[1] + "\r\n"
 			}
 
 			return line
 		}()
-
-		_, err = writer.WriteString(write)
-
+		writer.Write([]byte(write))
+		err = writer.Flush()
 		if err != nil {
-			fmt.Println("Error writing to connection:", err)
 			break
 		}
 
-		if err := writer.Flush(); err != nil {
-			fmt.Println("Error flushing buffer:", err)
-			break
-		}
 	}
-
 }
