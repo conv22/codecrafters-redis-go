@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	parser "github.com/codecrafters-io/redis-starter-go/app/parsers"
+	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
 )
 
 func main() {
@@ -37,10 +37,11 @@ func main() {
 func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 	defer conn.Close()
 	defer wg.Done()
-
-	parser := parser.CreateParser("resp")
+	RespEncodingConstants := parsers.RespEncodingConstants
+	parser := parsers.CreateParser("resp")
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
+	tmpDb := make(map[string]string)
 
 	for {
 		bytesRead, err := conn.Read(buf)
@@ -55,19 +56,37 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 		line := string(buf[:bytesRead])
 
 		write := func() string {
-			parserResult, err := parser.HandleParse(line)
-			if err != nil || len(parserResult) == 0 {
+			parsedResult, err := parser.HandleParse(line)
+			if err != nil || len(parsedResult) == 0 {
 				return line
 			}
 
-			firstCmd := parserResult[0]
+			firstCmd := strings.ToLower(parsedResult[0])
 
-			if strings.EqualFold(firstCmd, "ping") {
-				return "+PONG\r\n"
-			}
+			switch firstCmd {
+			case "ping":
+				return parser.HandleEncode(RespEncodingConstants.String, "PONG")
 
-			if len(parserResult) >= 2 && strings.EqualFold(firstCmd, "echo") {
-				return "+" + parserResult[1] + "\r\n"
+			case "echo":
+				if len(parsedResult) >= 2 {
+					return parser.HandleEncode(RespEncodingConstants.String, parsedResult[1])
+
+				}
+
+			case "set":
+				if len(parsedResult) >= 3 {
+					key, value := parsedResult[1], parsedResult[2]
+					tmpDb[key] = value
+					return parser.HandleEncode(RespEncodingConstants.String, "OK")
+				}
+
+			case "get":
+				if len(parsedResult) >= 2 {
+					key := parsedResult[1]
+					value := tmpDb[key]
+					return parser.HandleEncode(RespEncodingConstants.String, value)
+				}
+
 			}
 
 			return line
