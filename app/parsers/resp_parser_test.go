@@ -9,25 +9,29 @@ func TestParseRESPV2(t *testing.T) {
 	tests := []struct {
 		name           string
 		input          string
-		expectedOutput []string
+		expectedOutput []ParsedCmd
 		expectError    bool
 	}{
 		{
-			name:           "Valid RESP v2 response",
-			input:          "*3\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$3\r\nbaz\r\n",
-			expectedOutput: []string{"foo", "bar", "baz"},
-			expectError:    false,
+			name:  "Valid RESP v2 response",
+			input: "*3\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$3\r\nbaz\r\n",
+			expectedOutput: []ParsedCmd{
+				{ValueType: RespEncodingConstants.BulkString, Value: "foo"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "bar"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "baz"},
+			},
+			expectError: false,
 		},
 		{
 			name:           "Valid RESP v2 response with single element",
 			input:          "*1\r\n$3\r\nfoo\r\n",
-			expectedOutput: []string{"foo"},
+			expectedOutput: []ParsedCmd{{ValueType: RespEncodingConstants.BulkString, Value: "foo"}},
 			expectError:    false,
 		},
 		{
 			name:           "Empty input",
 			input:          "",
-			expectedOutput: []string{},
+			expectedOutput: []ParsedCmd{},
 			expectError:    false,
 		},
 		{
@@ -39,11 +43,52 @@ func TestParseRESPV2(t *testing.T) {
 		{
 			name:           "Valid RESP v2 response with 'ping'",
 			input:          "*1\r\n$4\r\nping\r\n",
-			expectedOutput: []string{"ping"},
+			expectedOutput: []ParsedCmd{{ValueType: RespEncodingConstants.BulkString, Value: "ping"}},
 			expectError:    false,
 		},
+		{
+			name:           "Invalid string format",
+			input:          "*1\r\n$4\r\nping\r\\",
+			expectedOutput: nil,
+			expectError:    true,
+		},
+		{
+			name:  "Valid RESP v2 response",
+			input: "*5\r\n$3\r\nSET\r\n$6\r\nmangos\r\n$11\r\nwatermelons\r\n$2\r\nPX\r\n$3\r\n100\r\n",
+			expectedOutput: []ParsedCmd{
+				{ValueType: RespEncodingConstants.BulkString, Value: "SET"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "mangos"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "watermelons"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "PX"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "100"},
+			},
+			expectError: false,
+		},
+		{
+			name:  "Valid RESP v2 response",
+			input: "*5\r\n$3\r\nSET\r\n$6\r\nmangos\r\n$11\r\nwatermelons\r\n$2\r\nPX\r\n$3\r\n100\r\n",
+			expectedOutput: []ParsedCmd{
+				{ValueType: RespEncodingConstants.BulkString, Value: "SET"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "mangos"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "watermelons"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "PX"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "100"},
+			},
+			expectError: false,
+		},
+		{
+			name:  "Valid RESP v2 response with different value types",
+			input: "*5\r\n$3\r\nSET\r\n+mangos\r\n:+125\r\n-Error message\r\n$3\r\n100\r\n",
+			expectedOutput: []ParsedCmd{
+				{ValueType: RespEncodingConstants.BulkString, Value: "SET"},
+				{ValueType: RespEncodingConstants.String, Value: "mangos"},
+				{ValueType: RespEncodingConstants.Integer, Value: "+125"},
+				{ValueType: RespEncodingConstants.Error, Value: "Error message"},
+				{ValueType: RespEncodingConstants.BulkString, Value: "100"},
+			},
+			expectError: false,
+		},
 	}
-
 	p := &RespParser{}
 
 	for _, test := range tests {

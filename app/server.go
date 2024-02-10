@@ -7,11 +7,14 @@ import (
 	"io"
 	"net"
 	"os"
-	"strings"
 	"sync"
 
+	cmds "github.com/codecrafters-io/redis-starter-go/app/cmds"
 	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
+	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
+
+var tmpDb = storage.CreateStorage()
 
 func main() {
 	listener, err := net.Listen("tcp", "0.0.0.0:6379")
@@ -34,14 +37,18 @@ func main() {
 	}
 }
 
+type db_record struct {
+	value          string
+	expirationTime *int64
+}
+
 func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 	defer conn.Close()
 	defer wg.Done()
-	RespEncodingConstants := parsers.RespEncodingConstants
 	parser := parsers.CreateParser("resp")
+	cmdProcessor := cmds.CreateProcessor("resp", &parser, &tmpDb)
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
-	tmpDb := make(map[string]string)
 
 	for {
 		bytesRead, err := conn.Read(buf)
@@ -55,47 +62,17 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 
 		line := string(buf[:bytesRead])
 
-		write := func() string {
-			parsedResult, err := parser.HandleParse(line)
-			if err != nil || len(parsedResult) == 0 {
-				return line
-			}
+		result, err := cmdProcessor.ProcessCmd(line)
 
-			firstCmd := strings.ToLower(parsedResult[0])
+		write := line
 
-			switch firstCmd {
-			case "ping":
-				return parser.HandleEncode(RespEncodingConstants.String, "PONG")
-
-			case "echo":
-				if len(parsedResult) >= 2 {
-					return parser.HandleEncode(RespEncodingConstants.String, parsedResult[1])
-
-				}
-
-			case "set":
-				if len(parsedResult) >= 3 {
-					key, value := parsedResult[1], parsedResult[2]
-					tmpDb[key] = value
-					return parser.HandleEncode(RespEncodingConstants.String, "OK")
-				}
-
-			case "get":
-				if len(parsedResult) >= 2 {
-					key := parsedResult[1]
-					value := tmpDb[key]
-					return parser.HandleEncode(RespEncodingConstants.String, value)
-				}
-
-			}
-
-			return line
-		}()
+		if err == nil {
+			write = result
+		}
 		writer.Write([]byte(write))
 		err = writer.Flush()
 		if err != nil {
 			break
 		}
-
 	}
 }

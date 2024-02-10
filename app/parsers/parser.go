@@ -1,11 +1,16 @@
 package parser
 
-type parser_interface interface {
-	HandleParse(s string) ([]string, error)
+type ParsedCmd struct {
+	ValueType string
+	Value     string
+}
+
+type Parser interface {
+	HandleParse(s string) ([]ParsedCmd, error)
 	HandleEncode(encoding string, s string) string
 }
 
-func CreateParser(t string) parser_interface {
+func CreateParser(t string) Parser {
 	switch t {
 	case "resp":
 		return &RespParser{}
