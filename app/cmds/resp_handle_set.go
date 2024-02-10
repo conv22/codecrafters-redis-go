@@ -11,8 +11,8 @@ import (
 )
 
 type setKeyOptions struct {
-	EX      int   // Set the specified expire time, in seconds (a positive integer). // !!!redo to int
-	PX      int   // Set the specified expire time, in milliseconds (a positive integer). // !!!redo to int
+	EX      int   // Set the specified expire time, in seconds (a positive integer).
+	PX      int   // Set the specified expire time, in milliseconds (a positive integer).
 	EXAT    int64 // Set the specified Unix time at which the key will expire, in seconds (a positive integer).
 	PXAT    int64 // Set the specified Unix time at which the key will expire, in milliseconds (a positive integer).
 	NX      bool  // Only set the key if it does not already exist.
@@ -38,7 +38,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) (
 	var options *setKeyOptions = nil
 
 	if len(parsedResult) >= 3 {
-		options = getOptions(parsedResult[3:])
+		options = getOptions(parsedResult[2:])
 	}
 
 	lockWrite := false
@@ -52,7 +52,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) (
 	}
 
 	if lockWrite {
-		return processor.parser.HandleEncode(RespEncodingConstants.Null, ""), nil
+		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, ""), nil
 	}
 
 	processor.storage.Set(storage.StorageKey{Key: key}, storage.StorageValue{Value: value, ExpirationTime: calculateExpirationTime(options)})
@@ -83,7 +83,6 @@ func getOptions(parsedResult []parsers.ParsedCmd) *setKeyOptions {
 					}
 					if key == EX {
 						options.EX = value
-
 					}
 					i++
 				}
@@ -106,7 +105,6 @@ func getOptions(parsedResult []parsers.ParsedCmd) *setKeyOptions {
 		}
 
 	}
-
 	return &options
 }
 
@@ -122,11 +120,11 @@ func calculateExpirationTime(options *setKeyOptions) *int64 {
 		return &pxatSeconds
 	}
 	if options.EX > 0 {
-		exTime := time.Now().Add(time.Duration(options.EX) * time.Second).Unix()
+		exTime := time.Now().Add(time.Duration(options.EX) * time.Second).UnixMilli()
 		return &exTime
 	}
 	if options.PX > 0 {
-		pxTime := time.Now().Add(time.Duration(options.PX) * time.Millisecond).Unix()
+		pxTime := time.Now().Add(time.Duration(options.PX) * time.Millisecond).UnixMilli()
 		return &pxTime
 	}
 	return nil

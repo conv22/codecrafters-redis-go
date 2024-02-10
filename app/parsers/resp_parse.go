@@ -118,7 +118,7 @@ func (parser *RespParser) HandleParse(s string) ([]ParsedCmd, error) {
 	if len(s) == 0 {
 		return result, nil
 	}
-	if !strings.HasPrefix(s, RespEncodingConstants.Length) || !strings.HasSuffix(s, RespEncodingConstants.Separator) {
+	if !strings.HasSuffix(s, RespEncodingConstants.Separator) {
 		return nil, errors.New("invalid input")
 	}
 
@@ -133,7 +133,7 @@ func (parser *RespParser) HandleParse(s string) ([]ParsedCmd, error) {
 
 	}
 
-	if arrayLength != len(result) {
+	if arrayLength != 0 && arrayLength != len(result) {
 		return nil, errors.New("invalid input")
 	}
 

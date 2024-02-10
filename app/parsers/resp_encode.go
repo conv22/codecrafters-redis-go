@@ -17,8 +17,8 @@ func (parser *RespParser) HandleEncode(encoding string, s string) string {
 	switch encoding {
 	case RespEncodingConstants.String:
 		return parser.encodeData(RespEncodingConstants.String, s)
-	case RespEncodingConstants.Null:
-		return RespEncodingConstants.Null + RespEncodingConstants.Separator
+	case RespEncodingConstants.NullBulkString:
+		return RespEncodingConstants.NullBulkString + RespEncodingConstants.Separator
 	case RespEncodingConstants.Error:
 		return parser.encodeData(RespEncodingConstants.Error, s)
 	case RespEncodingConstants.BulkString:

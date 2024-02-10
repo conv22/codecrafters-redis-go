@@ -1,21 +1,21 @@
 package parser
 
 type RespEncodings struct {
-	BulkString string
-	String     string
-	Integer    string
-	Separator  string
-	Length     string
-	Error      string
-	Null       string
+	BulkString     string
+	NullBulkString string
+	String         string
+	Integer        string
+	Separator      string
+	Length         string
+	Error          string
 }
 
 var RespEncodingConstants = RespEncodings{
-	BulkString: "$",
-	String:     "+",
-	Integer:    ":",
-	Separator:  "\r\n",
-	Length:     "*",
-	Error:      "-",
-	Null:       "_",
+	BulkString:     "$",
+	NullBulkString: "$-1",
+	String:         "+",
+	Integer:        ":",
+	Separator:      "\r\n",
+	Length:         "*",
+	Error:          "-",
 }

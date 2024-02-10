@@ -88,6 +88,16 @@ func TestParseRESPV2(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name:  "Valid RESP v2 response with string",
+			input: "+Test\r\n",
+			expectedOutput: []ParsedCmd{
+				{
+					ValueType: RespEncodingConstants.String, Value: "Test",
+				},
+			},
+			expectError: false,
+		},
 	}
 	p := &RespParser{}
 
