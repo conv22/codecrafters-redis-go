@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"sync"
 
 	cmds "github.com/codecrafters-io/redis-starter-go/app/cmds"
+	config "github.com/codecrafters-io/redis-starter-go/app/config"
 	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
 	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
@@ -17,6 +19,10 @@ import (
 var tmpDb = storage.CreateStorage()
 
 func main() {
+	flag.Parse()
+
+	cfg := config.InitializeConfig()
+
 	listener, err := net.Listen("tcp", "0.0.0.0:6379")
 	if err != nil {
 		fmt.Println("Failed to bind to port 6379")
@@ -33,7 +39,7 @@ func main() {
 			continue
 		}
 		wg.Add(1)
-		go handleClient(conn, &wg)
+		go handleClient(conn, &wg, &cfg)
 	}
 }
 
@@ -42,11 +48,11 @@ type db_record struct {
 	expirationTime *int64
 }
 
-func handleClient(conn net.Conn, wg *sync.WaitGroup) {
+func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
 	defer conn.Close()
 	defer wg.Done()
 	parser := parsers.CreateParser("resp")
-	cmdProcessor := cmds.CreateProcessor("resp", &parser, &tmpDb)
+	cmdProcessor := cmds.CreateProcessor("resp", &parser, &tmpDb, config)
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
 

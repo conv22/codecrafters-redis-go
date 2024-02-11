@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/codecrafters-io/redis-starter-go/app/config"
 	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
 	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
@@ -13,6 +14,7 @@ var RespEncodingConstants = parsers.RespEncodingConstants
 type RespCmdProcessor struct {
 	parser  parsers.Parser
 	storage storage.Storage
+	config  config.Config
 }
 
 func (processor RespCmdProcessor) ProcessCmd(line string) (string, error) {

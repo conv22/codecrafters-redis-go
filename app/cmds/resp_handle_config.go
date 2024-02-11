@@ -9,7 +9,7 @@ import (
 )
 
 func (processor RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd) (string, error) {
-	if len(parsedResult) < 1 {
+	if len(parsedResult) < 2 {
 		return "", errors.New("not enough arguments")
 	}
 	cmd := strings.ToLower(parsedResult[0].Value)
@@ -20,16 +20,16 @@ func (processor RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd)
 			flagType := parsedResult[1].Value
 			value := ""
 			if flagType == "dir" {
-				dirFlag := flag.String("dir", "", "The directory where RDB files are stored")
+				dirFlag := processor.config.DirFlag
 				flag.Parse()
-				value = *dirFlag
+				value = dirFlag
 
 			}
 
 			if flagType == "dbfilename" {
-				dbFileNameFlag := flag.String("dbfilename", "", "The name of the RDB file")
+				dbFileNameFlag := processor.config.DbFilenameFlag
 				flag.Parse()
-				value = *dbFileNameFlag
+				value = dbFileNameFlag
 			}
 
 			encodings := []parsers.SliceEncoding{
