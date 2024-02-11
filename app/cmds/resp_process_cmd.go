@@ -16,6 +16,15 @@ type RespCmdProcessor struct {
 	config  config.Config
 }
 
+const (
+	cmdPing   string = "ping"
+	cmdEcho   string = "echo"
+	cmdGet    string = "get"
+	cmdSet    string = "set"
+	cmdConfig string = "config"
+	cmdKeys   string = "keys"
+)
+
 func (processor RespCmdProcessor) ProcessCmd(line string) string {
 	parsedResult, err := processor.parser.HandleParse(line)
 
@@ -31,21 +40,21 @@ func (processor RespCmdProcessor) ProcessCmd(line string) string {
 	cmds := parsedResult[1:]
 
 	switch firstCmd {
-	case "ping":
+	case cmdPing:
 		return processor.handlePing()
 
-	case "echo":
+	case cmdEcho:
 		return processor.handleEcho(cmds)
 
-	case "set":
+	case cmdSet:
 		return processor.handleSet(cmds)
 
-	case "get":
+	case cmdGet:
 		return processor.handleGet(cmds)
 
-	case "config":
+	case cmdConfig:
 		return processor.handleConfig(cmds)
-	case "keys":
+	case cmdKeys:
 		return processor.handleKeys(cmds)
 	default:
 		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not able to process the cmd")

@@ -7,6 +7,11 @@ import (
 	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
 )
 
+const (
+	configDir      = "dir"
+	configFileName = "dbfilename"
+)
+
 func (processor RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd) string {
 	if len(parsedResult) < 2 {
 		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
@@ -18,14 +23,14 @@ func (processor RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd)
 		{
 			flagType := parsedResult[1].Value
 			value := ""
-			if flagType == "dir" {
+			if flagType == configDir {
 				dirFlag := processor.config.DirFlag
 				flag.Parse()
 				value = dirFlag
 
 			}
 
-			if flagType == "dbfilename" {
+			if flagType == configFileName {
 				dbFileNameFlag := processor.config.DbFilenameFlag
 				flag.Parse()
 				value = dbFileNameFlag
