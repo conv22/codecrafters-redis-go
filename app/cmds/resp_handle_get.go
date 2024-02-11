@@ -13,8 +13,8 @@ func (processor *RespCmdProcessor) handleGet(parsedResult []parsers.ParsedCmd) (
 		return "", errors.New("not enough arguments")
 	}
 	key := parsedResult[0].Value
-	value := processor.storage.Get(storage.StorageKey{Key: key})
-	if value == nil {
+	value, ok := processor.storage.Get(storage.StorageKey{Key: key})
+	if !ok {
 		return "", nil
 	}
 	if calculateIsExpired(value.ExpirationTime) {

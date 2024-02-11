@@ -10,12 +10,9 @@ func NewInMemoryStorage() *inMemoryStorage {
 	}
 }
 
-func (ims *inMemoryStorage) Get(key StorageKey) *StorageValue {
+func (ims *inMemoryStorage) Get(key StorageKey) (StorageValue, bool) {
 	value, ok := ims.data[key.Key]
-	if !ok {
-		return nil
-	}
-	return &value
+	return value, ok
 }
 
 func (ims *inMemoryStorage) Set(key StorageKey, value StorageValue) error {

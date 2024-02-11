@@ -4,26 +4,42 @@ import (
 	"strconv"
 )
 
-func (parser *RespParser) encodeLengthData(encoding string, s string) string {
+func encodeLengthData(encoding string, s string) string {
 	return encoding + strconv.Itoa(len(s)) + RespEncodingConstants.Separator + s + RespEncodingConstants.Separator
-
 }
 
-func (parser *RespParser) encodeData(encoding string, s string) string {
+func encodeData(encoding string, s string) string {
 	return encoding + s + RespEncodingConstants.Separator
 }
 
-func (parser *RespParser) HandleEncode(encoding string, s string) string {
+type SliceEncoding struct {
+	S        string
+	Encoding string
+}
+
+func (parser RespParser) HandleEncodeSlice(slices []SliceEncoding) string {
+	length := strconv.Itoa(len(slices))
+	output := RespEncodingConstants.Length + length + RespEncodingConstants.Separator
+
+	for _, slice := range slices {
+		encodedValue := parser.HandleEncode(slice.Encoding, slice.S)
+		output += encodedValue
+	}
+
+	return output
+}
+
+func (parser RespParser) HandleEncode(encoding string, s string) string {
 	switch encoding {
 	case RespEncodingConstants.String:
-		return parser.encodeData(RespEncodingConstants.String, s)
+		return encodeData(RespEncodingConstants.String, s)
 	case RespEncodingConstants.NullBulkString:
 		return RespEncodingConstants.NullBulkString + RespEncodingConstants.Separator
 	case RespEncodingConstants.Error:
-		return parser.encodeData(RespEncodingConstants.Error, s)
+		return encodeData(RespEncodingConstants.Error, s)
 	case RespEncodingConstants.BulkString:
-		return parser.encodeLengthData(RespEncodingConstants.BulkString, s)
+		return encodeLengthData(RespEncodingConstants.BulkString, s)
 	default:
-		return s
+		return ""
 	}
 }

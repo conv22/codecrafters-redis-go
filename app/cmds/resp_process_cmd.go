@@ -15,7 +15,7 @@ type RespCmdProcessor struct {
 	storage storage.Storage
 }
 
-func (processor *RespCmdProcessor) ProcessCmd(line string) (string, error) {
+func (processor RespCmdProcessor) ProcessCmd(line string) (string, error) {
 	parsedResult, err := processor.parser.HandleParse(line)
 
 	if err != nil {
@@ -42,6 +42,8 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) (string, error) {
 	case "get":
 		return processor.handleGet(cmds)
 
+	case "config":
+		return processor.handleConfig(cmds)
 	default:
 		return "", errors.New("not able to process cmd")
 	}

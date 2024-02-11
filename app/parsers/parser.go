@@ -8,6 +8,7 @@ type ParsedCmd struct {
 type Parser interface {
 	HandleParse(s string) ([]ParsedCmd, error)
 	HandleEncode(encoding string, s string) string
+	HandleEncodeSlice(encoding []SliceEncoding) string
 }
 
 func CreateParser(t string) Parser {

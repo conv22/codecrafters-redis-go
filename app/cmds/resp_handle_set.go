@@ -35,7 +35,8 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) (
 		return "", errors.New("not enough arguments")
 	}
 	key, value := parsedResult[0].Value, parsedResult[1].Value
-	var options *setKeyOptions = nil
+	var options setKeyOptions
+	var expirationTime *int64 = nil
 
 	if len(parsedResult) >= 3 {
 		options = getOptions(parsedResult[2:])
@@ -43,24 +44,25 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) (
 
 	lockWrite := false
 
-	if options != nil && (options.NX || options.XX) {
-		currentValue := processor.storage.Get(storage.StorageKey{Key: key})
+	if options.NX || options.XX {
+		_, ok := processor.storage.Get(storage.StorageKey{Key: key})
 
-		if currentValue == nil && options.XX || currentValue != nil && options.NX {
+		if !ok && options.XX || ok && options.NX {
 			lockWrite = true
 		}
 	}
+	expirationTime = calculateExpirationTime(options)
 
 	if lockWrite {
 		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, ""), nil
 	}
 
-	processor.storage.Set(storage.StorageKey{Key: key}, storage.StorageValue{Value: value, ExpirationTime: calculateExpirationTime(options)})
+	processor.storage.Set(storage.StorageKey{Key: key}, storage.StorageValue{Value: value, ExpirationTime: expirationTime})
 	return processor.parser.HandleEncode(RespEncodingConstants.String, "OK"), nil
 
 }
 
-func getOptions(parsedResult []parsers.ParsedCmd) *setKeyOptions {
+func getOptions(parsedResult []parsers.ParsedCmd) setKeyOptions {
 	options := setKeyOptions{}
 
 	for i := 0; i < len(parsedResult); i++ {
@@ -105,13 +107,10 @@ func getOptions(parsedResult []parsers.ParsedCmd) *setKeyOptions {
 		}
 
 	}
-	return &options
+	return options
 }
 
-func calculateExpirationTime(options *setKeyOptions) *int64 {
-	if options == nil {
-		return nil
-	}
+func calculateExpirationTime(options setKeyOptions) *int64 {
 	if options.EXAT > 0 {
 		return &options.EXAT
 	}

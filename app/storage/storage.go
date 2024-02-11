@@ -15,7 +15,7 @@ type StoragePair struct {
 }
 
 type Storage interface {
-	Get(key StorageKey) *StorageValue
+	Get(key StorageKey) (StorageValue, bool)
 	Set(key StorageKey, value StorageValue) error
 	Delete(key StorageKey) error
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func (parser *RespParser) parseLength(s string, arrayLength *int, result *[]ParsedCmd) (string, error) {
+func parseLength(s string, arrayLength *int, result *[]ParsedCmd) (string, error) {
 	if *arrayLength > 0 {
 		return "", errors.New("invalid input")
 	}
@@ -28,7 +28,7 @@ func (parser *RespParser) parseLength(s string, arrayLength *int, result *[]Pars
 	return value, nil
 }
 
-func (parser *RespParser) parseLengthData(s string, encoding string, result *[]ParsedCmd) (string, error) {
+func parseLengthData(s string, encoding string, result *[]ParsedCmd) (string, error) {
 	separatorIndex := strings.Index(s, RespEncodingConstants.Separator)
 	if separatorIndex == -1 {
 		return "", errors.New("separator not found")
@@ -56,7 +56,7 @@ func (parser *RespParser) parseLengthData(s string, encoding string, result *[]P
 	return value, nil
 }
 
-func (parser *RespParser) parseData(s string, encoding string, result *[]ParsedCmd) (string, error) {
+func parseData(s string, encoding string, result *[]ParsedCmd) (string, error) {
 	separatorIndex := strings.Index(s, RespEncodingConstants.Separator)
 	if separatorIndex == -1 {
 		return "", errors.New("separator not found")
@@ -75,20 +75,20 @@ func (parser *RespParser) parseData(s string, encoding string, result *[]ParsedC
 	return value, nil
 }
 
-func (parser *RespParser) parseInteger(s string, result *[]ParsedCmd) (string, error) {
-	return parser.parseData(s, RespEncodingConstants.Integer, result)
+func parseInteger(s string, result *[]ParsedCmd) (string, error) {
+	return parseData(s, RespEncodingConstants.Integer, result)
 }
 
-func (parser *RespParser) parseBulkString(s string, result *[]ParsedCmd) (string, error) {
-	return parser.parseLengthData(s, RespEncodingConstants.BulkString, result)
+func parseBulkString(s string, result *[]ParsedCmd) (string, error) {
+	return parseLengthData(s, RespEncodingConstants.BulkString, result)
 }
 
-func (parser *RespParser) parseString(s string, result *[]ParsedCmd) (string, error) {
-	return parser.parseData(s, RespEncodingConstants.String, result)
+func parseString(s string, result *[]ParsedCmd) (string, error) {
+	return parseData(s, RespEncodingConstants.String, result)
 }
 
-func (parser *RespParser) parseError(s string, result *[]ParsedCmd) (string, error) {
-	return parser.parseData(s, RespEncodingConstants.Error, result)
+func parseError(s string, result *[]ParsedCmd) (string, error) {
+	return parseData(s, RespEncodingConstants.Error, result)
 }
 
 func (parser *RespParser) parseValue(s string, arrayLength *int, result *[]ParsedCmd) (string, error) {
@@ -97,15 +97,15 @@ func (parser *RespParser) parseValue(s string, arrayLength *int, result *[]Parse
 	str := s[1:]
 	switch firstChar {
 	case RespEncodingConstants.Length:
-		return parser.parseLength(str, arrayLength, result)
+		return parseLength(str, arrayLength, result)
 	case RespEncodingConstants.BulkString:
-		return parser.parseBulkString(str, result)
+		return parseBulkString(str, result)
 	case RespEncodingConstants.Error:
-		return parser.parseError(str, result)
+		return parseError(str, result)
 	case RespEncodingConstants.String:
-		return parser.parseString(str, result)
+		return parseString(str, result)
 	case RespEncodingConstants.Integer:
-		return parser.parseInteger(str, result)
+		return parseInteger(str, result)
 	default:
 		return "", errors.New("invalid input")
 	}
