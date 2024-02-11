@@ -68,7 +68,7 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
 
 		line := string(buf[:bytesRead])
 
-		result, err := cmdProcessor.ProcessCmd(line)
+		result := cmdProcessor.ProcessCmd(line)
 
 		write := line
 
