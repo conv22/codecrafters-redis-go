@@ -42,16 +42,12 @@ func (processor RespCmdProcessor) ProcessCmd(line string) string {
 	switch firstCmd {
 	case cmdPing:
 		return processor.handlePing()
-
 	case cmdEcho:
 		return processor.handleEcho(cmds)
-
 	case cmdSet:
 		return processor.handleSet(cmds)
-
 	case cmdGet:
 		return processor.handleGet(cmds)
-
 	case cmdConfig:
 		return processor.handleConfig(cmds)
 	case cmdKeys:
