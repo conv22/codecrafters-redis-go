@@ -1,7 +1,6 @@
 package cmds
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -30,9 +29,9 @@ const (
 	KEEPTTL = "KEEPTTL"
 )
 
-func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) (string, error) {
+func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) string {
 	if len(parsedResult) < 2 {
-		return "", errors.New("not enough arguments")
+		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}
 	key, value := parsedResult[0].Value, parsedResult[1].Value
 	var options setKeyOptions
@@ -54,11 +53,11 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) (
 	expirationTime = calculateExpirationTime(options)
 
 	if lockWrite {
-		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, ""), nil
+		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, "")
 	}
 
 	processor.storage.Set(storage.StorageKey{Key: key}, storage.StorageValue{Value: value, ExpirationTime: expirationTime})
-	return processor.parser.HandleEncode(RespEncodingConstants.String, "OK"), nil
+	return processor.parser.HandleEncode(RespEncodingConstants.String, "OK")
 
 }
 

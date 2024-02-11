@@ -1,27 +1,26 @@
 package cmds
 
 import (
-	"errors"
 	"time"
 
 	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
 	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-func (processor *RespCmdProcessor) handleGet(parsedResult []parsers.ParsedCmd) (string, error) {
+func (processor *RespCmdProcessor) handleGet(parsedResult []parsers.ParsedCmd) string {
 	if len(parsedResult) < 1 {
-		return "", errors.New("not enough arguments")
+		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}
 	key := parsedResult[0].Value
 	value, ok := processor.storage.Get(storage.StorageKey{Key: key})
 	if !ok {
-		return "", nil
+		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, "")
 	}
 	if calculateIsExpired(value.ExpirationTime) {
 		processor.storage.Delete(storage.StorageKey{Key: key})
-		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, ""), nil
+		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, "")
 	}
-	return processor.parser.HandleEncode(RespEncodingConstants.String, value.Value), nil
+	return processor.parser.HandleEncode(RespEncodingConstants.String, value.Value)
 
 }
 

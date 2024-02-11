@@ -1,15 +1,13 @@
 package cmds
 
 import (
-	"errors"
-
 	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
 )
 
-func (processor *RespCmdProcessor) handleEcho(parsedResult []parsers.ParsedCmd) (string, error) {
+func (processor *RespCmdProcessor) handleEcho(parsedResult []parsers.ParsedCmd) string {
 	if len(parsedResult) < 1 {
-		return "", errors.New("not enough arguments")
+		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 
 	}
-	return processor.parser.HandleEncode(RespEncodingConstants.String, parsedResult[0].Value), nil
+	return processor.parser.HandleEncode(RespEncodingConstants.String, parsedResult[0].Value)
 }

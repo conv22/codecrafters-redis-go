@@ -7,7 +7,7 @@ import (
 )
 
 type CmdProcessor interface {
-	ProcessCmd(line string) (string, error)
+	ProcessCmd(line string) string
 }
 
 func CreateProcessor(t string, p *parsers.Parser, storage *storage.Storage, config *config.Config) CmdProcessor {

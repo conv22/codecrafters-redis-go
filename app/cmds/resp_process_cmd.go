@@ -1,7 +1,6 @@
 package cmds
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/config"
@@ -17,15 +16,15 @@ type RespCmdProcessor struct {
 	config  config.Config
 }
 
-func (processor RespCmdProcessor) ProcessCmd(line string) (string, error) {
+func (processor RespCmdProcessor) ProcessCmd(line string) string {
 	parsedResult, err := processor.parser.HandleParse(line)
 
 	if err != nil {
-		return "", err
+		return processor.parser.HandleEncode(RespEncodingConstants.Error, "error parsing the line")
 	}
 
 	if len(parsedResult) == 0 {
-		return "", errors.New("no arguments were parsed")
+		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}
 
 	firstCmd := strings.ToLower(parsedResult[0].Value)
@@ -46,7 +45,9 @@ func (processor RespCmdProcessor) ProcessCmd(line string) (string, error) {
 
 	case "config":
 		return processor.handleConfig(cmds)
+	case "keys":
+		return processor.handleKeys(cmds)
 	default:
-		return "", errors.New("not able to process cmd")
+		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not able to process the cmd")
 	}
 }

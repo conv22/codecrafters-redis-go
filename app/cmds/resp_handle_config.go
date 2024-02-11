@@ -1,16 +1,15 @@
 package cmds
 
 import (
-	"errors"
 	"flag"
 	"strings"
 
 	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
 )
 
-func (processor RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd) (string, error) {
+func (processor RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd) string {
 	if len(parsedResult) < 2 {
-		return "", errors.New("not enough arguments")
+		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}
 	cmd := strings.ToLower(parsedResult[0].Value)
 
@@ -37,12 +36,10 @@ func (processor RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd)
 				{S: value, Encoding: RespEncodingConstants.BulkString},
 			}
 
-			return processor.parser.HandleEncodeSlice(encodings), nil
-
+			return processor.parser.HandleEncodeSlice(encodings)
 		}
-
 	default:
-		return "", errors.New("unsupported cmd")
+		return processor.parser.HandleEncode(RespEncodingConstants.Error, "unsupported cmd")
 	}
 
 }
