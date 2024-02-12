@@ -2,6 +2,9 @@ package reader
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
+	"io"
 	"os"
 )
 
@@ -23,7 +26,42 @@ const (
 	TYPE_STRING = 0
 )
 
-type RdbReader struct{}
+// Length of version in the header
+const VERSION_NUMBER_LENGTH = 4
+
+// Magic redis string
+var RDB_MAGIC = []byte("REDIS")
+
+type RdbReader struct {
+	reader *bufio.Reader
+}
+
+func (rdb *RdbReader) parseStart() error {
+	buffer := make([]byte, len(RDB_MAGIC))
+	length, err := rdb.reader.Read(buffer)
+	if err != nil {
+		return err
+	}
+
+	if length != len(RDB_MAGIC) || bytes.Equal(RDB_MAGIC, buffer) {
+		return errors.New("redis signature not found")
+	}
+
+	return nil
+}
+func (rdb *RdbReader) parseVersion() error {
+	buffer := make([]byte, VERSION_NUMBER_LENGTH)
+	length, err := rdb.reader.Read(buffer)
+	if err != nil {
+		return err
+	}
+
+	if length != VERSION_NUMBER_LENGTH {
+		return errors.New("redis signature not found")
+	}
+
+	return nil
+}
 
 func (rdb RdbReader) HandleRead(path string) ([]ReaderResult, error) {
 	file, err := os.Open(path)
@@ -36,5 +74,43 @@ func (rdb RdbReader) HandleRead(path string) ([]ReaderResult, error) {
 
 	reader := bufio.NewReader(file)
 
-	return nil, nil
+	err = rdb.parseStart()
+	if err != nil {
+		return nil, err
+	}
+
+	err = rdb.parseVersion()
+	if err != nil {
+		return nil, err
+	}
+
+	var results []ReaderResult
+
+out:
+	for {
+		opCode, err := reader.ReadByte()
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		switch opCode {
+		case EOF:
+			break out
+		case SELECTDB:
+		case EXPIRETIME:
+		case EXPIRETIMEMS:
+		case RESIZEDB:
+		case AUX:
+		case TYPE_STRING:
+		default:
+			break out
+		}
+
+	}
+	return results, nil
+
 }
