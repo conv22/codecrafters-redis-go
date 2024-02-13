@@ -30,7 +30,7 @@ func (processor *RespCmdProcessor) handleKeys(parsedResult []parsers.ParsedCmd) 
 		result := []parsers.SliceEncoding{}
 
 		for _, key := range keys {
-			result = append(result, parsers.SliceEncoding{Encoding: RespEncodingConstants.BulkString, S: string(key.Key)})
+			result = append(result, parsers.SliceEncoding{Encoding: RespEncodingConstants.BulkString, S: key.Key})
 		}
 
 		return processor.parser.HandleEncodeSlice(result)

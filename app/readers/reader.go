@@ -1,8 +1,8 @@
 package reader
 
 type ReaderResult struct {
-	Key   byte
-	Value []byte
+	Key   string
+	Value string
 }
 
 type Reader interface {
