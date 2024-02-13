@@ -11,9 +11,17 @@ import (
 var RespEncodingConstants = parsers.RespEncodingConstants
 
 type RespCmdProcessor struct {
-	parser  parsers.Parser
-	storage storage.Storage
-	config  config.Config
+	parser  *parsers.RespParser
+	storage *storage.InMemoryStorage
+	config  *config.Config
+}
+
+func NewRespCmdProcessor(p *parsers.RespParser, storage *storage.InMemoryStorage, config *config.Config) *RespCmdProcessor {
+	return &RespCmdProcessor{
+		parser:  p,
+		storage: storage,
+		config:  config,
+	}
 }
 
 const (
@@ -25,7 +33,7 @@ const (
 	cmdKeys   string = "keys"
 )
 
-func (processor RespCmdProcessor) ProcessCmd(line string) string {
+func (processor *RespCmdProcessor) ProcessCmd(line string) string {
 	parsedResult, err := processor.parser.HandleParse(line)
 
 	if err != nil {

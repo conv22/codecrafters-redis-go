@@ -12,7 +12,7 @@ const (
 	configFileName = "dbfilename"
 )
 
-func (processor RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd) string {
+func (processor *RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd) string {
 	if len(parsedResult) < 2 {
 		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}

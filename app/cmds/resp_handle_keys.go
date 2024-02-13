@@ -13,12 +13,12 @@ func (processor *RespCmdProcessor) handleKeys(parsedResult []parsers.ParsedCmd) 
 	if len(parsedResult) < 1 {
 		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}
-	reader := reader.CreateReader("rdb")
+	reader := reader.NewRdbReader()
 
 	dirName, dirFlag := processor.config.DirFlag, processor.config.DbFilenameFlag
 
 	if parsedResult[0].Value == "*" {
-		keys, err := reader.HandleRead(filepath.Join(dirName, dirFlag))
+		dbs, err := reader.HandleRead(filepath.Join(dirName, dirFlag))
 
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -29,8 +29,10 @@ func (processor *RespCmdProcessor) handleKeys(parsedResult []parsers.ParsedCmd) 
 
 		result := []parsers.SliceEncoding{}
 
-		for _, key := range keys {
-			result = append(result, parsers.SliceEncoding{Encoding: RespEncodingConstants.BulkString, S: key.Key})
+		for _, db := range *dbs {
+			for key := range db.CacheMap {
+				result = append(result, parsers.SliceEncoding{Encoding: RespEncodingConstants.BulkString, S: key})
+			}
 		}
 
 		return processor.parser.HandleEncodeSlice(result)

@@ -2,32 +2,46 @@ package storage
 
 import "sync"
 
-type inMemoryStorage struct {
+type StorageValue struct {
+	Value          string
+	ExpirationTime *int64
+}
+
+type StorageKey struct {
+	Key string
+}
+
+type StoragePair struct {
+	Key   StorageKey
+	Value StorageValue
+}
+
+type InMemoryStorage struct {
 	data map[string]StorageValue
 	mu   sync.RWMutex
 }
 
-func NewInMemoryStorage() *inMemoryStorage {
-	return &inMemoryStorage{
+func NewInMemoryStorage() *InMemoryStorage {
+	return &InMemoryStorage{
 		data: make(map[string]StorageValue),
 	}
 }
 
-func (ims *inMemoryStorage) Get(key StorageKey) (StorageValue, bool) {
+func (ims *InMemoryStorage) Get(key StorageKey) (StorageValue, bool) {
 	ims.mu.RLock()
 	defer ims.mu.RUnlock()
 	value, ok := ims.data[key.Key]
 	return value, ok
 }
 
-func (ims *inMemoryStorage) Set(key StorageKey, value StorageValue) error {
+func (ims *InMemoryStorage) Set(key StorageKey, value StorageValue) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
 	ims.data[key.Key] = value
 	return nil
 }
 
-func (ims *inMemoryStorage) Delete(key StorageKey) error {
+func (ims *InMemoryStorage) Delete(key StorageKey) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
 	delete(ims.data, key.Key)

@@ -16,7 +16,7 @@ import (
 	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-var tmpDb = storage.CreateStorage()
+var tmpDb = storage.NewInMemoryStorage()
 
 func main() {
 	flag.Parse()
@@ -43,16 +43,11 @@ func main() {
 	}
 }
 
-type db_record struct {
-	value          string
-	expirationTime *int64
-}
-
 func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
 	defer conn.Close()
 	defer wg.Done()
-	parser := parsers.CreateParser("resp")
-	cmdProcessor := cmds.CreateProcessor("resp", &parser, &tmpDb, config)
+	parser := parsers.NewRespParser()
+	cmdProcessor := cmds.NewRespCmdProcessor(parser, tmpDb, config)
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
 
