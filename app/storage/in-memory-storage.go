@@ -1,44 +1,62 @@
 package storage
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
-type StorageValue struct {
-	Value          any
-	ExpirationTime *int64
+type StorageKey = string
+
+type StorageId = uint8
+
+type StorageItem struct {
+	Value    any
+	Expiry   *time.Time
+	Encoding string
 }
 
-type StorageKey struct {
-	Key string
+type Storage struct {
+	ID             uint8
+	HashSize       int
+	ExpireHashSize int
+	CacheMap       map[StorageKey]StorageItem
+	mu             sync.RWMutex
 }
 
-type InMemoryStorage struct {
-	data map[string]StorageValue
-	mu   sync.RWMutex
-}
-
-func NewInMemoryStorage() *InMemoryStorage {
-	return &InMemoryStorage{
-		data: make(map[string]StorageValue),
+func NewStorage(ID uint8) *Storage {
+	return &Storage{
+		ID:       ID,
+		CacheMap: make(map[StorageKey]StorageItem),
 	}
 }
 
-func (ims *InMemoryStorage) Get(key StorageKey) (StorageValue, bool) {
+func (ims *Storage) Get(key StorageKey) (StorageItem, bool) {
 	ims.mu.RLock()
 	defer ims.mu.RUnlock()
-	value, ok := ims.data[key.Key]
+	value, ok := ims.CacheMap[key]
 	return value, ok
 }
 
-func (ims *InMemoryStorage) Set(key StorageKey, value StorageValue) error {
+func (ims *Storage) GetKeys() []string {
+	ims.mu.RLock()
+	defer ims.mu.RUnlock()
+	keys := make([]string, 0, len(ims.CacheMap))
+	for k := range ims.CacheMap {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (ims *Storage) Set(key StorageKey, value StorageItem) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
-	ims.data[key.Key] = value
+	ims.CacheMap[key] = value
 	return nil
 }
 
-func (ims *InMemoryStorage) Delete(key StorageKey) error {
+func (ims *Storage) Delete(key StorageKey) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
-	delete(ims.data, key.Key)
+	delete(ims.CacheMap, key)
 	return nil
 }

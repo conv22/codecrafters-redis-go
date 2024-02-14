@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -16,12 +15,10 @@ import (
 	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-var inMemoryDb = storage.NewInMemoryStorage()
+var cfg = config.NewConfig()
+var inMemoryDb = storage.NewStorage(0)
 
 func main() {
-	flag.Parse()
-
-	cfg := config.InitializeConfig()
 
 	listener, err := net.Listen("tcp", "0.0.0.0:"+cfg.Port)
 	if err != nil {

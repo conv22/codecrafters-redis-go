@@ -14,8 +14,8 @@ var (
 	port           = flag.String("port", "6379", "Port for TCP server to listen to")
 )
 
-func InitializeConfig() *Config {
-
+func NewConfig() *Config {
+	flag.Parse()
 	return &Config{
 		DirFlag:        *dirFlag,
 		DbFilenameFlag: *dbFilenameFlag,

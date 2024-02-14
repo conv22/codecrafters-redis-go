@@ -12,11 +12,11 @@ var RespEncodingConstants = parsers.RespEncodingConstants
 
 type RespCmdProcessor struct {
 	parser  *parsers.RespParser
-	storage *storage.InMemoryStorage
+	storage *storage.Storage
 	config  *config.Config
 }
 
-func NewRespCmdProcessor(p *parsers.RespParser, storage *storage.InMemoryStorage, config *config.Config) *RespCmdProcessor {
+func NewRespCmdProcessor(p *parsers.RespParser, storage *storage.Storage, config *config.Config) *RespCmdProcessor {
 	return &RespCmdProcessor{
 		parser:  p,
 		storage: storage,

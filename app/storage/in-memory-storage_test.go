@@ -4,12 +4,12 @@ import (
 	"testing"
 )
 
-var mockStorageValue = StorageValue{Value: "testValue"}
+var mockStorageValue = StorageItem{Value: "testValue"}
 
 func TestGet(t *testing.T) {
-	ims := NewInMemoryStorage()
+	ims := NewStorage(0)
 
-	key := StorageKey{Key: "testKey"}
+	key := "testKey"
 	ims.Set(key, mockStorageValue)
 
 	result, ok := ims.Get(key)
@@ -18,7 +18,7 @@ func TestGet(t *testing.T) {
 		t.Errorf("Expected value %v, got %v", mockStorageValue, result)
 	}
 
-	result, ok = ims.Get(StorageKey{Key: "nonExistingKey"})
+	result, ok = ims.Get("nonExistingKey")
 	if ok {
 		t.Errorf("Expected error 'key not found', got %v", result)
 
@@ -27,9 +27,9 @@ func TestGet(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	ims := NewInMemoryStorage()
+	ims := NewStorage(0)
 
-	key := StorageKey{Key: "testKey"}
+	key := "testKey"
 
 	err := ims.Set(key, mockStorageValue)
 

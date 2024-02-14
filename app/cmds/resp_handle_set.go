@@ -35,7 +35,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) s
 	}
 	key, value := parsedResult[0].Value, parsedResult[1].Value
 	var options setKeyOptions
-	var expirationTime *int64 = nil
+	var expirationTime *time.Time = nil
 
 	if len(parsedResult) >= 3 {
 		options = getOptions(parsedResult[2:])
@@ -44,7 +44,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) s
 	lockWrite := false
 
 	if options.NX || options.XX {
-		_, ok := processor.storage.Get(storage.StorageKey{Key: key})
+		_, ok := processor.storage.Get(key)
 
 		if !ok && options.XX || ok && options.NX {
 			lockWrite = true
@@ -56,7 +56,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) s
 		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, "")
 	}
 
-	processor.storage.Set(storage.StorageKey{Key: key}, storage.StorageValue{Value: value, ExpirationTime: expirationTime})
+	processor.storage.Set(key, storage.StorageItem{Value: value, Expiry: expirationTime})
 	return processor.parser.HandleEncode(RespEncodingConstants.String, "OK")
 
 }
@@ -109,20 +109,22 @@ func getOptions(parsedResult []parsers.ParsedCmd) setKeyOptions {
 	return options
 }
 
-func calculateExpirationTime(options setKeyOptions) *int64 {
+func calculateExpirationTime(options setKeyOptions) *time.Time {
 	if options.EXAT > 0 {
-		return &options.EXAT
+		exatTime := time.Unix(options.EXAT, 0)
+		return &exatTime
 	}
 	if options.PXAT > 0 {
 		pxatSeconds := options.PXAT / 1000
-		return &pxatSeconds
+		pxatTime := time.Unix(pxatSeconds, 0)
+		return &pxatTime
 	}
 	if options.EX > 0 {
-		exTime := time.Now().Add(time.Duration(options.EX) * time.Second).UnixMilli()
+		exTime := time.Now().Add(time.Duration(options.EX) * time.Second)
 		return &exTime
 	}
 	if options.PX > 0 {
-		pxTime := time.Now().Add(time.Duration(options.PX) * time.Millisecond).UnixMilli()
+		pxTime := time.Now().Add(time.Duration(options.PX) * time.Millisecond)
 		return &pxTime
 	}
 	return nil
