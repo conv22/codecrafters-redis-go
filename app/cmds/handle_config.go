@@ -14,7 +14,7 @@ const (
 
 func (processor *RespCmdProcessor) handleConfig(parsedResult []resp.ParsedCmd) string {
 	if len(parsedResult) < 2 {
-		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
+		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
 	}
 	cmd := strings.ToLower(parsedResult[0].Value)
 
@@ -37,14 +37,14 @@ func (processor *RespCmdProcessor) handleConfig(parsedResult []resp.ParsedCmd) s
 			}
 
 			encodings := []resp.SliceEncoding{
-				{S: flagType, Encoding: RespEncodingConstants.BulkString},
-				{S: value, Encoding: RespEncodingConstants.BulkString},
+				{S: flagType, Encoding: RespEncodingConstants.BULK_STRING},
+				{S: value, Encoding: RespEncodingConstants.BULK_STRING},
 			}
 
 			return processor.parser.HandleEncodeSlice(encodings)
 		}
 	default:
-		return processor.parser.HandleEncode(RespEncodingConstants.Error, "unsupported cmd")
+		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "unsupported cmd")
 	}
 
 }

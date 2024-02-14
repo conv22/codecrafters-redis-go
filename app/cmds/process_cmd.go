@@ -5,10 +5,10 @@ import (
 
 	"github.com/codecrafters-io/redis-starter-go/app/config"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
-	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
+	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-var RespEncodingConstants = resp.RespEncodingConstants
+var RespEncodingConstants = resp.RESP_ENCODING_CONSTANTS
 
 type RespCmdProcessor struct {
 	parser  *resp.RespParser
@@ -25,42 +25,42 @@ func NewRespCmdProcessor(p *resp.RespParser, storage *storage.Storage, config *c
 }
 
 const (
-	cmdPing   string = "ping"
-	cmdEcho   string = "echo"
-	cmdGet    string = "get"
-	cmdSet    string = "set"
-	cmdConfig string = "config"
-	cmdKeys   string = "keys"
+	CMD_PING   string = "ping"
+	CMD_ECHO   string = "echo"
+	CMD_GET    string = "get"
+	CMD_SET    string = "set"
+	CMD_CONFIG string = "config"
+	CMD_KEYS   string = "keys"
 )
 
 func (processor *RespCmdProcessor) ProcessCmd(line string) string {
 	parsedResult, err := processor.parser.HandleParse(line)
 
 	if err != nil {
-		return processor.parser.HandleEncode(RespEncodingConstants.Error, "error parsing the line")
+		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "error parsing the line")
 	}
 
 	if len(parsedResult) == 0 {
-		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
+		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
 	}
 
 	firstCmd := strings.ToLower(parsedResult[0].Value)
 	cmds := parsedResult[1:]
 
 	switch firstCmd {
-	case cmdPing:
+	case CMD_PING:
 		return processor.handlePing()
-	case cmdEcho:
+	case CMD_ECHO:
 		return processor.handleEcho(cmds)
-	case cmdSet:
+	case CMD_SET:
 		return processor.handleSet(cmds)
-	case cmdGet:
+	case CMD_GET:
 		return processor.handleGet(cmds)
-	case cmdConfig:
+	case CMD_CONFIG:
 		return processor.handleConfig(cmds)
-	case cmdKeys:
+	case CMD_KEYS:
 		return processor.handleKeys(cmds)
 	default:
-		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not able to process the cmd")
+		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd")
 	}
 }

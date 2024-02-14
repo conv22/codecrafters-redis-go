@@ -8,18 +8,18 @@ import (
 
 func (processor *RespCmdProcessor) handleGet(parsedResult []resp.ParsedCmd) string {
 	if len(parsedResult) < 1 {
-		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
+		processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
 	}
 	key := parsedResult[0].Value
 	value, ok := processor.storage.Get(key)
 	if !ok {
-		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, "")
+		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}
 	if calculateIsExpired(value.Expiry) {
 		processor.storage.Delete(key)
-		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, "")
+		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}
-	return processor.parser.HandleEncode(RespEncodingConstants.String, value.Value.(string))
+	return processor.parser.HandleEncode(RespEncodingConstants.STRING, value.Value.(string))
 
 }
 

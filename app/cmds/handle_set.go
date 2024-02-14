@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
-	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
+	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
 type setKeyOptions struct {
@@ -31,7 +31,7 @@ const (
 
 func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) string {
 	if len(parsedResult) < 2 {
-		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
+		processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
 	}
 	key, value := parsedResult[0].Value, parsedResult[1].Value
 	var options setKeyOptions
@@ -53,11 +53,11 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) stri
 	expirationTime = calculateExpirationTime(options)
 
 	if lockWrite {
-		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, "")
+		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}
 
 	processor.storage.Set(key, storage.StorageItem{Value: value, Expiry: expirationTime})
-	return processor.parser.HandleEncode(RespEncodingConstants.String, "OK")
+	return processor.parser.HandleEncode(RespEncodingConstants.STRING, "OK")
 
 }
 

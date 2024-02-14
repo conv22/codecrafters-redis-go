@@ -1,21 +1,21 @@
 package resp
 
 type RespEncodings struct {
-	BulkString     string
-	NullBulkString string
-	String         string
-	Integer        string
-	Separator      string
-	Length         string
-	Error          string
+	BULK_STRING      string
+	NULL_BULK_STRING string
+	STRING           string
+	INTEGER          string
+	SEPARATOR        string
+	LENGTH           string
+	ERROR            string
 }
 
-var RespEncodingConstants = RespEncodings{
-	BulkString:     "$",
-	NullBulkString: "$-1",
-	String:         "+",
-	Integer:        ":",
-	Separator:      "\r\n",
-	Length:         "*",
-	Error:          "-",
+var RESP_ENCODING_CONSTANTS = RespEncodings{
+	BULK_STRING:      "$",
+	NULL_BULK_STRING: "$-1",
+	STRING:           "+",
+	INTEGER:          ":",
+	SEPARATOR:        "\r\n",
+	LENGTH:           "*",
+	ERROR:            "-",
 }
