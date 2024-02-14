@@ -23,9 +23,9 @@ func main() {
 
 	cfg := config.InitializeConfig()
 
-	listener, err := net.Listen("tcp", "0.0.0.0:6379")
+	listener, err := net.Listen("tcp", "0.0.0.0:"+cfg.Port)
 	if err != nil {
-		fmt.Println("Failed to bind to port 6379")
+		fmt.Println("Failed to bind to port: ", cfg.Port)
 		os.Exit(1)
 	}
 	defer listener.Close()
