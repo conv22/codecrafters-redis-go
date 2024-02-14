@@ -14,7 +14,7 @@ func TestGet(t *testing.T) {
 
 	result, ok := ims.Get(key)
 
-	if result != mockStorageValue {
+	if !ok || result != mockStorageValue {
 		t.Errorf("Expected value %v, got %v", mockStorageValue, result)
 	}
 

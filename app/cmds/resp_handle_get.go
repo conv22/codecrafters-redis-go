@@ -20,7 +20,7 @@ func (processor *RespCmdProcessor) handleGet(parsedResult []parsers.ParsedCmd) s
 		processor.storage.Delete(storage.StorageKey{Key: key})
 		return processor.parser.HandleEncode(RespEncodingConstants.NullBulkString, "")
 	}
-	return processor.parser.HandleEncode(RespEncodingConstants.String, value.Value)
+	return processor.parser.HandleEncode(RespEncodingConstants.String, value.Value.(string))
 
 }
 

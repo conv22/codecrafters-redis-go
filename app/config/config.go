@@ -12,8 +12,8 @@ var (
 	dbFilenameFlag = flag.String("dbfilename", "", "The name of the RDB file")
 )
 
-func InitializeConfig() Config {
-	return Config{
+func InitializeConfig() *Config {
+	return &Config{
 		DirFlag:        *dirFlag,
 		DbFilenameFlag: *dbFilenameFlag,
 	}

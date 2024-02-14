@@ -3,37 +3,63 @@ package reader
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"time"
 )
 
-type ItemKey = string
-
-type DbKey = uint8
-
-type DbItem struct {
-	Value    any
-	expiry   *time.Time
-	encoding string
-}
-
-type Database struct {
-	ID             uint8
-	HashSize       int
-	ExpireHashSize int
-	CacheMap       map[ItemKey]*DbItem
-}
-
 type ReadResult = map[DbKey]*Database
 
 type RdbReader struct {
-	reader  *bufio.Reader
-	version int
+	reader             *bufio.Reader
+	version            int
+	dbsMap             map[DbKey]*Database
+	currDbIdx          uint8
+	currItemExpiryTime *time.Time
 }
 
 func NewRdbReader() *RdbReader {
-	return &RdbReader{}
+	return &RdbReader{
+		dbsMap: make(map[DbKey]*Database),
+	}
+}
+
+func (rdb *RdbReader) getCurrentDB() *Database {
+	db, ok := rdb.dbsMap[rdb.currDbIdx]
+
+	if !ok {
+		newDb := newDatabase(rdb.currDbIdx)
+		rdb.dbsMap[rdb.currDbIdx] = newDb
+		return newDb
+	}
+
+	return db
+}
+
+func (rdb *RdbReader) setItemToCurrentDB(key ItemKey, encoding string, value interface{}) error {
+	db, ok := rdb.dbsMap[rdb.currDbIdx]
+
+	fmt.Printf("%v", value)
+
+	if !ok {
+		return errors.New("DB does not exist")
+	}
+	err := db.setToCache(key, &DbItem{
+		expiry:   rdb.currItemExpiryTime,
+		encoding: encoding,
+		Value:    value,
+	})
+
+	if err != nil {
+		return err
+	}
+	rdb.resetCurrentItemProps()
+	return nil
+}
+
+func (rdb *RdbReader) resetCurrentItemProps() {
+	rdb.currItemExpiryTime = nil
 }
 
 func (rdb *RdbReader) HandleRead(path string) (*ReadResult, error) {
@@ -44,10 +70,6 @@ func (rdb *RdbReader) HandleRead(path string) (*ReadResult, error) {
 	}
 
 	defer file.Close()
-
-	var currDbIdx uint8
-	dbsMap := make(map[DbKey]*Database)
-	var expiryTime *time.Time
 
 	rdb.reader = bufio.NewReader(file)
 
@@ -66,14 +88,7 @@ out:
 	for {
 		opCode, err := rdb.readByte()
 
-		currDb, isCurrentDbInCache := dbsMap[currDbIdx]
-
-		if !isCurrentDbInCache {
-			currDb = &Database{
-				CacheMap: make(map[string]*DbItem),
-			}
-			dbsMap[currDbIdx] = currDb
-		}
+		currDb := rdb.getCurrentDB()
 
 		if err != nil {
 			if errors.Is(err, io.EOF) {
@@ -91,19 +106,24 @@ out:
 			if err != nil {
 				return nil, err
 			}
-			currDbIdx = nextDbIdx
+			rdb.currDbIdx = nextDbIdx
+		// TODO: skip item if expired
 		case RDB_OPCODE_EXPIRE_TIME:
-			time, err := rdb.parseExpiryTimeSec()
-			if err != nil {
-				return nil, err
-			}
-			expiryTime = time
 		case RDB_OPCODE_EXPIRE_TIME_MS:
-			time, err := rdb.parseExpiryTimeMs()
+			var time *time.Time
+			var err error
+
+			if opCode == RDB_OPCODE_EXPIRE_TIME {
+				time, err = rdb.parseExpiryTimeSec()
+			} else if opCode == RDB_OPCODE_EXPIRE_TIME_MS {
+				time, err = rdb.parseExpiryTimeMs()
+			}
+
 			if err != nil {
 				return nil, err
 			}
-			expiryTime = time
+
+			rdb.currItemExpiryTime = time
 		case RDB_OPCODE_RESIZE_DB:
 			dbHashTableSize, expiryHashTableSize, err := rdb.parseResizeDb()
 			if err != nil {
@@ -123,12 +143,8 @@ out:
 				continue
 			}
 
-			currDb.CacheMap[key] = &DbItem{
-				expiry:   expiryTime,
-				encoding: "",
-				Value:    value,
-			}
-			expiryTime = nil
+			rdb.setItemToCurrentDB(key, "", value)
+
 		default:
 			// not supported
 			continue
@@ -138,6 +154,6 @@ out:
 		}
 	}
 
-	return &dbsMap, nil
+	return &rdb.dbsMap, nil
 
 }

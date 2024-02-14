@@ -16,7 +16,7 @@ import (
 	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-var tmpDb = storage.NewInMemoryStorage()
+var inMemoryDb = storage.NewInMemoryStorage()
 
 func main() {
 	flag.Parse()
@@ -39,7 +39,7 @@ func main() {
 			continue
 		}
 		wg.Add(1)
-		go handleClient(conn, &wg, &cfg)
+		go handleClient(conn, &wg, cfg)
 	}
 }
 
@@ -47,7 +47,7 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
 	defer conn.Close()
 	defer wg.Done()
 	parser := parsers.NewRespParser()
-	cmdProcessor := cmds.NewRespCmdProcessor(parser, tmpDb, config)
+	cmdProcessor := cmds.NewRespCmdProcessor(parser, inMemoryDb, config)
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
 

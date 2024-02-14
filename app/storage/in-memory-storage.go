@@ -3,17 +3,12 @@ package storage
 import "sync"
 
 type StorageValue struct {
-	Value          string
+	Value          any
 	ExpirationTime *int64
 }
 
 type StorageKey struct {
 	Key string
-}
-
-type StoragePair struct {
-	Key   StorageKey
-	Value StorageValue
 }
 
 type InMemoryStorage struct {
