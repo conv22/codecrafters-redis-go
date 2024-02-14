@@ -44,7 +44,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) stri
 	lockWrite := false
 
 	if options.NX || options.XX {
-		_, ok := processor.storage.Get(key)
+		_, ok := processor.storage.GetItemFromCurrentStorage(key)
 
 		if !ok && options.XX || ok && options.NX {
 			lockWrite = true
@@ -56,7 +56,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) stri
 		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}
 
-	processor.storage.Set(key, storage.StorageItem{Value: value, Expiry: expirationTime})
+	processor.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, Expiry: expirationTime})
 	return processor.parser.HandleEncode(RespEncodingConstants.STRING, "OK")
 
 }

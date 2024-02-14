@@ -7,19 +7,31 @@ import (
 	"io"
 	"net"
 	"os"
+	"path"
 	"sync"
 
 	"github.com/codecrafters-io/redis-starter-go/app/cmds"
 	"github.com/codecrafters-io/redis-starter-go/app/config"
+	"github.com/codecrafters-io/redis-starter-go/app/rdb"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
 var cfg = config.NewConfig()
-var inMemoryDb = storage.NewStorage(cfg)
+var rdbReader = rdb.NewRdb()
+var inMemoryStorage = initStorage()
+
+func initStorage() *storage.StorageCollection {
+	persistStorage, err := rdbReader.HandleRead(path.Join(cfg.DirFlag, cfg.DbFilenameFlag))
+
+	if err != nil {
+		return storage.NewStorageCollection()
+	}
+
+	return persistStorage
+}
 
 func main() {
-
 	listener, err := net.Listen("tcp", "0.0.0.0:"+cfg.Port)
 	if err != nil {
 		fmt.Println("Failed to bind to port: ", cfg.Port)
@@ -44,7 +56,7 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
 	defer conn.Close()
 	defer wg.Done()
 	parser := resp.NewRespParser()
-	cmdProcessor := cmds.NewRespCmdProcessor(parser, inMemoryDb, config)
+	cmdProcessor := cmds.NewRespCmdProcessor(parser, inMemoryStorage, config)
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
 

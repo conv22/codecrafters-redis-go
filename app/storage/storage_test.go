@@ -7,14 +7,14 @@ import (
 var mockStorageValue = StorageItem{Value: "testValue"}
 
 func TestGet(t *testing.T) {
-	ims := NewStorage(nil)
+	ims := NewStorage()
 
 	key := "testKey"
-	ims.Set(key, mockStorageValue)
+	ims.Set(key, &mockStorageValue)
 
 	result, ok := ims.Get(key)
 
-	if !ok || result != mockStorageValue {
+	if !ok || *result != mockStorageValue {
 		t.Errorf("Expected value %v, got %v", mockStorageValue, result)
 	}
 
@@ -27,11 +27,11 @@ func TestGet(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	ims := NewStorage(nil)
+	ims := NewStorage()
 
 	key := "testKey"
 
-	err := ims.Set(key, mockStorageValue)
+	err := ims.Set(key, &mockStorageValue)
 
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -43,7 +43,7 @@ func TestSet(t *testing.T) {
 		t.Errorf("No value returned")
 	}
 
-	if get != mockStorageValue {
+	if *get != mockStorageValue {
 		t.Errorf("Expected value %v, got %v", mockStorageValue, get)
 	}
 }

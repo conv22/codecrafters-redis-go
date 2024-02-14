@@ -3,58 +3,39 @@ package rdb
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"time"
-)
 
-type ReadResult = map[DbKey]*Database
+	"github.com/codecrafters-io/redis-starter-go/app/storage"
+)
 
 type Rdb struct {
 	reader             *bufio.Reader
 	version            int
-	dbsMap             map[DbKey]*Database
+	collection         *storage.StorageCollection
 	currDbIdx          uint8
 	currItemExpiryTime *time.Time
 }
 
 func NewRdb() *Rdb {
 	return &Rdb{
-		dbsMap: make(map[DbKey]*Database),
+		collection: storage.NewStorageCollection(),
 	}
 }
 
-func (rdb *Rdb) getCurrentDB() *Database {
-	db, ok := rdb.dbsMap[rdb.currDbIdx]
+func (rdb *Rdb) setItemToCurrentDB(key storage.StorageKey, encoding string, value interface{}) error {
+	currStorage := rdb.collection.GetStorageById(rdb.currDbIdx)
 
-	if !ok {
-		newDb := newDatabase(rdb.currDbIdx)
-		rdb.dbsMap[rdb.currDbIdx] = newDb
-		return newDb
-	}
-
-	return db
-}
-
-func (rdb *Rdb) setItemToCurrentDB(key ItemKey, encoding string, value interface{}) error {
-	db, ok := rdb.dbsMap[rdb.currDbIdx]
-
-	fmt.Printf("%v", value)
-
-	if !ok {
-		return errors.New("DB does not exist")
-	}
-	err := db.setToCache(key, &DbItem{
-		expiry:   rdb.currItemExpiryTime,
-		encoding: encoding,
+	err := currStorage.Set(key, &storage.StorageItem{
+		Expiry:   rdb.currItemExpiryTime,
+		Encoding: encoding,
 		Value:    value,
 	})
-
+	rdb.resetCurrentItemProps()
 	if err != nil {
 		return err
 	}
-	rdb.resetCurrentItemProps()
 	return nil
 }
 
@@ -62,7 +43,7 @@ func (rdb *Rdb) resetCurrentItemProps() {
 	rdb.currItemExpiryTime = nil
 }
 
-func (rdb *Rdb) HandleRead(path string) (*ReadResult, error) {
+func (rdb *Rdb) HandleRead(path string) (*storage.StorageCollection, error) {
 	file, err := os.Open(path)
 
 	if err != nil {
@@ -88,7 +69,7 @@ out:
 	for {
 		opCode, err := rdb.readByte()
 
-		currDb := rdb.getCurrentDB()
+		currStorage := rdb.collection.GetStorageById(rdb.currDbIdx)
 
 		if err != nil {
 			if errors.Is(err, io.EOF) {
@@ -98,7 +79,6 @@ out:
 		}
 
 		switch opCode {
-
 		case RDB_OPCODE_EOF:
 			break out
 		case RDB_OPCODE_SELECT_DB:
@@ -129,8 +109,8 @@ out:
 			if err != nil {
 				return nil, err
 			}
-			currDb.HashSize = dbHashTableSize
-			currDb.ExpireHashSize = expiryHashTableSize
+			currStorage.HashSize = dbHashTableSize
+			currStorage.ExpireHashSize = expiryHashTableSize
 		case RDB_OPCODE_AUX:
 			keyI, value, err := rdb.parseAux()
 			if err != nil {
@@ -154,6 +134,6 @@ out:
 		}
 	}
 
-	return &rdb.dbsMap, nil
+	return rdb.collection, nil
 
 }
