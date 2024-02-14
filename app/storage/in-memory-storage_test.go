@@ -7,7 +7,7 @@ import (
 var mockStorageValue = StorageItem{Value: "testValue"}
 
 func TestGet(t *testing.T) {
-	ims := NewStorage(0)
+	ims := NewStorage(nil)
 
 	key := "testKey"
 	ims.Set(key, mockStorageValue)
@@ -27,7 +27,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	ims := NewStorage(0)
+	ims := NewStorage(nil)
 
 	key := "testKey"
 

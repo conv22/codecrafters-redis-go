@@ -1,4 +1,4 @@
-package reader
+package rdb
 
 const (
 	// Op codes

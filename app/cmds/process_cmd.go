@@ -4,19 +4,19 @@ import (
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/config"
-	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-var RespEncodingConstants = parsers.RespEncodingConstants
+var RespEncodingConstants = resp.RespEncodingConstants
 
 type RespCmdProcessor struct {
-	parser  *parsers.RespParser
+	parser  *resp.RespParser
 	storage *storage.Storage
 	config  *config.Config
 }
 
-func NewRespCmdProcessor(p *parsers.RespParser, storage *storage.Storage, config *config.Config) *RespCmdProcessor {
+func NewRespCmdProcessor(p *resp.RespParser, storage *storage.Storage, config *config.Config) *RespCmdProcessor {
 	return &RespCmdProcessor{
 		parser:  p,
 		storage: storage,

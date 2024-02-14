@@ -1,20 +1,18 @@
 package cmds
 
-import (
-	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
-)
+import "github.com/codecrafters-io/redis-starter-go/app/resp"
 
-func (processor *RespCmdProcessor) handleKeys(parsedResult []parsers.ParsedCmd) string {
+func (processor *RespCmdProcessor) handleKeys(parsedResult []resp.ParsedCmd) string {
 	if len(parsedResult) < 1 {
 		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}
 
 	if parsedResult[0].Value == "*" {
 
-		result := []parsers.SliceEncoding{}
+		result := []resp.SliceEncoding{}
 
 		for _, key := range processor.storage.GetKeys() {
-			result = append(result, parsers.SliceEncoding{S: key, Encoding: RespEncodingConstants.String})
+			result = append(result, resp.SliceEncoding{S: key, Encoding: RespEncodingConstants.String})
 		}
 
 		return processor.parser.HandleEncodeSlice(result)

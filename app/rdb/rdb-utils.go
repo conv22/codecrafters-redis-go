@@ -1,11 +1,11 @@
-package reader
+package rdb
 
 import (
 	"encoding/binary"
 	"errors"
 )
 
-func (rdb *RdbReader) readBytes(l int) ([]byte, error) {
+func (rdb *Rdb) readBytes(l int) ([]byte, error) {
 	buffer := make([]byte, l)
 
 	length, err := rdb.reader.Read(buffer)
@@ -22,7 +22,7 @@ func (rdb *RdbReader) readBytes(l int) ([]byte, error) {
 
 }
 
-func (rdb *RdbReader) readByte() (byte, error) {
+func (rdb *Rdb) readByte() (byte, error) {
 	bytes, err := rdb.readBytes(1)
 	if err != nil {
 		return 0, err
@@ -30,7 +30,7 @@ func (rdb *RdbReader) readByte() (byte, error) {
 	return bytes[0], nil
 }
 
-func (rdb *RdbReader) readUnsignedShort() (uint16, error) {
+func (rdb *Rdb) readUnsignedShort() (uint16, error) {
 	b, err := rdb.readBytes(2)
 	if err != nil {
 		return 0, err
@@ -38,7 +38,7 @@ func (rdb *RdbReader) readUnsignedShort() (uint16, error) {
 	return binary.LittleEndian.Uint16(b), nil
 }
 
-func (rdb *RdbReader) readSignedInt() (int32, error) {
+func (rdb *Rdb) readSignedInt() (int32, error) {
 	b, err := rdb.readBytes(4)
 	if err != nil {
 		return 0, err
@@ -46,7 +46,7 @@ func (rdb *RdbReader) readSignedInt() (int32, error) {
 	return int32(binary.LittleEndian.Uint32(b)), nil
 }
 
-func (rdb *RdbReader) readUnsignedInt() (uint32, error) {
+func (rdb *Rdb) readUnsignedInt() (uint32, error) {
 	b, err := rdb.readBytes(4)
 	if err != nil {
 		return 0, err

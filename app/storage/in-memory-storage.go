@@ -1,8 +1,12 @@
 package storage
 
 import (
+	"path"
 	"sync"
 	"time"
+
+	"github.com/codecrafters-io/redis-starter-go/app/config"
+	"github.com/codecrafters-io/redis-starter-go/app/rdb"
 )
 
 type StorageKey = string
@@ -23,11 +27,30 @@ type Storage struct {
 	mu             sync.RWMutex
 }
 
-func NewStorage(ID uint8) *Storage {
-	return &Storage{
-		ID:       ID,
-		CacheMap: make(map[StorageKey]StorageItem),
+func NewStorage(config *config.Config) *Storage {
+	if config != nil {
+		savedDb := rdb.NewRdb()
+		_, err := savedDb.HandleRead(path.Join(config.DirFlag, config.DbFilenameFlag))
+
+		if err != nil {
+			return &Storage{
+				ID:       0,
+				CacheMap: make(map[StorageKey]StorageItem),
+			}
+		}
+
+		return &Storage{
+			ID:       0,
+			CacheMap: make(map[StorageKey]StorageItem),
+		}
+
+	} else {
+		return &Storage{
+			ID:       0,
+			CacheMap: make(map[StorageKey]StorageItem),
+		}
 	}
+
 }
 
 func (ims *Storage) Get(key StorageKey) (StorageItem, bool) {

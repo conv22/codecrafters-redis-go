@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
@@ -29,7 +29,7 @@ const (
 	KEEPTTL = "KEEPTTL"
 )
 
-func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) string {
+func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) string {
 	if len(parsedResult) < 2 {
 		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}
@@ -61,7 +61,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []parsers.ParsedCmd) s
 
 }
 
-func getOptions(parsedResult []parsers.ParsedCmd) setKeyOptions {
+func getOptions(parsedResult []resp.ParsedCmd) setKeyOptions {
 	options := setKeyOptions{}
 
 	for i := 0; i < len(parsedResult); i++ {

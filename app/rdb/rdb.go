@@ -1,4 +1,4 @@
-package reader
+package rdb
 
 import (
 	"bufio"
@@ -11,7 +11,7 @@ import (
 
 type ReadResult = map[DbKey]*Database
 
-type RdbReader struct {
+type Rdb struct {
 	reader             *bufio.Reader
 	version            int
 	dbsMap             map[DbKey]*Database
@@ -19,13 +19,13 @@ type RdbReader struct {
 	currItemExpiryTime *time.Time
 }
 
-func NewRdbReader() *RdbReader {
-	return &RdbReader{
+func NewRdb() *Rdb {
+	return &Rdb{
 		dbsMap: make(map[DbKey]*Database),
 	}
 }
 
-func (rdb *RdbReader) getCurrentDB() *Database {
+func (rdb *Rdb) getCurrentDB() *Database {
 	db, ok := rdb.dbsMap[rdb.currDbIdx]
 
 	if !ok {
@@ -37,7 +37,7 @@ func (rdb *RdbReader) getCurrentDB() *Database {
 	return db
 }
 
-func (rdb *RdbReader) setItemToCurrentDB(key ItemKey, encoding string, value interface{}) error {
+func (rdb *Rdb) setItemToCurrentDB(key ItemKey, encoding string, value interface{}) error {
 	db, ok := rdb.dbsMap[rdb.currDbIdx]
 
 	fmt.Printf("%v", value)
@@ -58,11 +58,11 @@ func (rdb *RdbReader) setItemToCurrentDB(key ItemKey, encoding string, value int
 	return nil
 }
 
-func (rdb *RdbReader) resetCurrentItemProps() {
+func (rdb *Rdb) resetCurrentItemProps() {
 	rdb.currItemExpiryTime = nil
 }
 
-func (rdb *RdbReader) HandleRead(path string) (*ReadResult, error) {
+func (rdb *Rdb) HandleRead(path string) (*ReadResult, error) {
 	file, err := os.Open(path)
 
 	if err != nil {

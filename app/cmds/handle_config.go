@@ -4,7 +4,7 @@ import (
 	"flag"
 	"strings"
 
-	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
 const (
@@ -12,7 +12,7 @@ const (
 	configFileName = "dbfilename"
 )
 
-func (processor *RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd) string {
+func (processor *RespCmdProcessor) handleConfig(parsedResult []resp.ParsedCmd) string {
 	if len(parsedResult) < 2 {
 		return processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}
@@ -36,7 +36,7 @@ func (processor *RespCmdProcessor) handleConfig(parsedResult []parsers.ParsedCmd
 				value = dbFileNameFlag
 			}
 
-			encodings := []parsers.SliceEncoding{
+			encodings := []resp.SliceEncoding{
 				{S: flagType, Encoding: RespEncodingConstants.BulkString},
 				{S: value, Encoding: RespEncodingConstants.BulkString},
 			}

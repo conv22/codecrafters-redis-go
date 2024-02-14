@@ -9,14 +9,14 @@ import (
 	"os"
 	"sync"
 
-	cmds "github.com/codecrafters-io/redis-starter-go/app/cmds"
-	config "github.com/codecrafters-io/redis-starter-go/app/config"
-	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
-	storage "github.com/codecrafters-io/redis-starter-go/app/storage"
+	"github.com/codecrafters-io/redis-starter-go/app/cmds"
+	"github.com/codecrafters-io/redis-starter-go/app/config"
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
+	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
 var cfg = config.NewConfig()
-var inMemoryDb = storage.NewStorage(0)
+var inMemoryDb = storage.NewStorage(cfg)
 
 func main() {
 
@@ -43,7 +43,7 @@ func main() {
 func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
 	defer conn.Close()
 	defer wg.Done()
-	parser := parsers.NewRespParser()
+	parser := resp.NewRespParser()
 	cmdProcessor := cmds.NewRespCmdProcessor(parser, inMemoryDb, config)
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)

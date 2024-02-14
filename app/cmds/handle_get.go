@@ -3,10 +3,10 @@ package cmds
 import (
 	"time"
 
-	parsers "github.com/codecrafters-io/redis-starter-go/app/parsers"
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
-func (processor *RespCmdProcessor) handleGet(parsedResult []parsers.ParsedCmd) string {
+func (processor *RespCmdProcessor) handleGet(parsedResult []resp.ParsedCmd) string {
 	if len(parsedResult) < 1 {
 		processor.parser.HandleEncode(RespEncodingConstants.Error, "not enough arguments")
 	}

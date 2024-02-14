@@ -1,4 +1,4 @@
-package parser
+package resp
 
 type RespEncodings struct {
 	BulkString     string

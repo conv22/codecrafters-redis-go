@@ -1,4 +1,4 @@
-package reader
+package rdb
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 )
 
 // https://rdb.fnordig.de/file_format.html#length-encoding
-func (rdb *RdbReader) parseLength() (length int, isEncoded bool, err error) {
+func (rdb *Rdb) parseLength() (length int, isEncoded bool, err error) {
 	firstByte, err := rdb.readByte()
 	if err != nil {
 		return 0, false, err
@@ -49,7 +49,7 @@ func (rdb *RdbReader) parseLength() (length int, isEncoded bool, err error) {
 
 }
 
-func (rdb *RdbReader) parseStart() error {
+func (rdb *Rdb) parseStart() error {
 	result, err := rdb.readBytes(len(RDB_MAGIC))
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func (rdb *RdbReader) parseStart() error {
 	return nil
 }
 
-func (rdb *RdbReader) parseVersion() (int, error) {
+func (rdb *Rdb) parseVersion() (int, error) {
 	b, err := rdb.readBytes(RDB_VERSION_NUMBER_LENGTH)
 	if err != nil {
 		return 0, err
@@ -72,7 +72,7 @@ func (rdb *RdbReader) parseVersion() (int, error) {
 }
 
 // https://github.com/sripathikrishnan/redis-rdb-tools/blob/master/rdbtools/parser.py#L28 extraction algo.
-func (rdb *RdbReader) handleLZFDecompress(compressed []byte, expectedLength int) ([]byte, error) {
+func (rdb *Rdb) handleLZFDecompress(compressed []byte, expectedLength int) ([]byte, error) {
 	inLen := len(compressed)
 	inIndex := 0
 	var outStream []byte
@@ -112,7 +112,7 @@ func (rdb *RdbReader) handleLZFDecompress(compressed []byte, expectedLength int)
 
 	return outStream, nil
 }
-func (rdb *RdbReader) parseString() (interface{}, error) {
+func (rdb *Rdb) parseString() (interface{}, error) {
 	length, isEncoded, err := rdb.parseLength()
 
 	if err != nil {
@@ -189,7 +189,7 @@ func (rdb *RdbReader) parseString() (interface{}, error) {
 
 }
 
-func (rdb *RdbReader) parseAux() (key, value interface{}, err error) {
+func (rdb *Rdb) parseAux() (key, value interface{}, err error) {
 	key, err = rdb.parseString()
 	if err != nil {
 		return
@@ -202,7 +202,7 @@ func (rdb *RdbReader) parseAux() (key, value interface{}, err error) {
 	return
 }
 
-func (rdb *RdbReader) parseSelectDb() (uint8, error) {
+func (rdb *Rdb) parseSelectDb() (uint8, error) {
 	_, err := rdb.readByte()
 
 	if err != nil {
@@ -219,7 +219,7 @@ func (rdb *RdbReader) parseSelectDb() (uint8, error) {
 }
 
 // The following 4 bytes represent the Unix timestamp as an unsigned integer.
-func (rdb *RdbReader) parseExpiryTimeSec() (*time.Time, error) {
+func (rdb *Rdb) parseExpiryTimeSec() (*time.Time, error) {
 	result, err := rdb.readBytes(RDB_EXPIRE_TIME_SEC_BYTES_LENGTH)
 	if err != nil {
 		return nil, err
@@ -231,7 +231,7 @@ func (rdb *RdbReader) parseExpiryTimeSec() (*time.Time, error) {
 }
 
 // The following expiry value is specified in milliseconds. The following 8 bytes represent the Unix timestamp as an unsigned long.
-func (rdb *RdbReader) parseExpiryTimeMs() (*time.Time, error) {
+func (rdb *Rdb) parseExpiryTimeMs() (*time.Time, error) {
 	result, err := rdb.readBytes(RDB_EXPIRE_TIME_MS_BYTES_LENGTH)
 	if err != nil {
 		return nil, err
@@ -242,7 +242,7 @@ func (rdb *RdbReader) parseExpiryTimeMs() (*time.Time, error) {
 
 	return &expiryTime, nil
 }
-func (rdb *RdbReader) parseResizeDb() (dbHashTableSize, expiryHashTableSize int, err error) {
+func (rdb *Rdb) parseResizeDb() (dbHashTableSize, expiryHashTableSize int, err error) {
 	dbHashTableSize, _, err = rdb.parseLength()
 	if err != nil {
 		return
