@@ -21,6 +21,7 @@ var cfg = config.NewConfig()
 var rdbReader = rdb.NewRdb()
 var inMemoryStorage = initStorage()
 var parser = resp.NewRespParser()
+var cmdProcessor = cmds.NewRespCmdProcessor(parser, inMemoryStorage, cfg)
 
 func initStorage() *storage.StorageCollection {
 	persistStorage, err := rdbReader.HandleRead(path.Join(cfg.DirFlag, cfg.DbFilenameFlag))
@@ -41,19 +42,11 @@ func main() {
 	defer listener.Close()
 
 	if cfg.IsReplica() {
-		replication := cfg.Replication
-		masterConn, err := net.Dial("tcp", replication.MasterAddress)
+		err := handleHandshake()
 		if err != nil {
-			fmt.Println("Master is not available", replication.MasterAddress)
+			fmt.Println(err.Error())
 			os.Exit(1)
 		}
-		defer masterConn.Close()
-		masterConn.Write([]byte(parser.HandleEncodeSliceList([]resp.SliceEncoding{
-			{
-				S:        "ping",
-				Encoding: resp.RESP_ENCODING_CONSTANTS.STRING,
-			},
-		})))
 	}
 
 	var wg sync.WaitGroup
@@ -65,14 +58,13 @@ func main() {
 			continue
 		}
 		wg.Add(1)
-		go handleClient(conn, &wg, cfg)
+		go handleClient(conn, &wg)
 	}
 }
 
-func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
+func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 	defer conn.Close()
 	defer wg.Done()
-	cmdProcessor := cmds.NewRespCmdProcessor(parser, inMemoryStorage, config)
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
 
@@ -96,9 +88,9 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
 			write = result
 		}
 		writer.Write([]byte(write))
-		err = writer.Flush()
-		if err != nil {
+		if err := writer.Flush(); err != nil {
 			break
 		}
+
 	}
 }

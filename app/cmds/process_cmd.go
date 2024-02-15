@@ -25,13 +25,14 @@ func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection,
 }
 
 const (
-	CMD_PING   string = "ping"
-	CMD_ECHO   string = "echo"
-	CMD_GET    string = "get"
-	CMD_SET    string = "set"
-	CMD_CONFIG string = "config"
-	CMD_KEYS   string = "keys"
-	CMD_INFO   string = "info"
+	CMD_PING     string = "PING"
+	CMD_ECHO     string = "ECHO"
+	CMD_GET      string = "GET"
+	CMD_SET      string = "SET"
+	CMD_CONFIG   string = "CONFIG"
+	CMD_KEYS     string = "KEYS"
+	CMD_INFO     string = "INFO"
+	CMD_REPLCONF string = "REPLCONF"
 )
 
 func (processor *RespCmdProcessor) ProcessCmd(line string) string {
@@ -45,7 +46,7 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) string {
 		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
 	}
 
-	firstCmd := strings.ToLower(parsedResult[0].Value)
+	firstCmd := strings.ToUpper(parsedResult[0].Value)
 	cmds := parsedResult[1:]
 
 	switch firstCmd {
@@ -63,6 +64,8 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) string {
 		return processor.handleKeys(cmds)
 	case CMD_INFO:
 		return processor.handleInfo(cmds)
+	case CMD_REPLCONF:
+		return processor.handleReplConf(cmds)
 	default:
 		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd")
 	}

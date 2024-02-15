@@ -1,5 +1,7 @@
 package config
 
+import "net"
+
 type ReplicationInfo struct {
 	Role          string
 	Offset        string
@@ -25,5 +27,6 @@ func getMasterAddress(replicaFlag string, flags []string) (masterAddress string)
 	if len(flags) != 1 {
 		return replicaFlag
 	}
-	return replicaFlag + ":" + flags[0]
+
+	return net.JoinHostPort(replicaFlag, flags[0])
 }

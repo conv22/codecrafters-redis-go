@@ -6,7 +6,7 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-var RDB_UNSUPPORTED_ERROR = errors.New("not supported encoding")
+var ErrRdbUnsupportedError = errors.New("not supported encoding")
 
 func (rdb *Rdb) readObject(encoding byte, key string, currStorage *storage.Storage) error {
 	if encoding == RDB_ENCODING_STRING_ENCODING {
@@ -23,6 +23,7 @@ func (rdb *Rdb) readObject(encoding byte, key string, currStorage *storage.Stora
 		})
 
 	}
+	// TODO: add other encodings
 
 	return errors.New("not supported encoding")
 }

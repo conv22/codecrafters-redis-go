@@ -119,7 +119,7 @@ out:
 
 		err = rdb.readObject(opCode, key, currStorage)
 
-		if errors.Is(RDB_UNSUPPORTED_ERROR, err) {
+		if errors.Is(ErrRdbUnsupportedError, err) {
 			rdb.skipObject(opCode)
 		}
 
