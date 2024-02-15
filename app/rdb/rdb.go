@@ -101,7 +101,7 @@ out:
 				return nil, err
 			}
 
-			currStorage.SetAuxField(key, value)
+			rdb.collection.SetAuxField(key, value)
 			continue out
 		case RDB_OPCODE_EXPIRE_TIME:
 		case RDB_OPCODE_EXPIRE_TIME_MS:

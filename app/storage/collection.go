@@ -1,15 +1,27 @@
 package storage
 
+import "sync"
+
 type StorageCollection struct {
 	CurrStorageId StorageId
 	Storages      map[StorageId]*Storage
+	AuxFields     map[string]interface{}
+	mu            sync.RWMutex
 }
 
 func NewStorageCollection() *StorageCollection {
 	return &StorageCollection{
-		Storages: make(map[StorageId]*Storage),
+		Storages:  make(map[StorageId]*Storage),
+		AuxFields: make(map[string]interface{}),
 	}
 
+}
+
+func (collection *StorageCollection) SetAuxField(key string, value interface{}) error {
+	collection.mu.Lock()
+	defer collection.mu.Unlock()
+	collection.AuxFields[key] = value
+	return nil
 }
 
 func (collection *StorageCollection) SetStorageById(id StorageId, storage *Storage) {
