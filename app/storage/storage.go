@@ -12,19 +12,21 @@ type StorageId = uint8
 type StorageItem struct {
 	Value    any
 	Expiry   *time.Time
-	Encoding string
+	Encoding byte
 }
 
 type Storage struct {
 	HashSize       int
 	ExpireHashSize int
 	CacheMap       map[StorageKey]*StorageItem
+	AuxFields      map[string]interface{}
 	mu             sync.RWMutex
 }
 
 func NewStorage() *Storage {
 	return &Storage{
-		CacheMap: make(map[StorageKey]*StorageItem),
+		CacheMap:  make(map[StorageKey]*StorageItem),
+		AuxFields: make(map[string]interface{}),
 	}
 }
 
@@ -49,6 +51,13 @@ func (ims *Storage) Set(key StorageKey, value *StorageItem) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
 	ims.CacheMap[key] = value
+	return nil
+}
+
+func (ims *Storage) SetAuxField(key string, value interface{}) error {
+	ims.mu.Lock()
+	defer ims.mu.Unlock()
+	ims.AuxFields[key] = value
 	return nil
 }
 

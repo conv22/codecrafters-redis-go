@@ -189,11 +189,17 @@ func (rdb *Rdb) parseString() (interface{}, error) {
 
 }
 
-func (rdb *Rdb) parseAux() (key, value interface{}, err error) {
-	key, err = rdb.parseString()
+func (rdb *Rdb) parseAux() (key string, value interface{}, err error) {
+	keyData, err := rdb.parseString()
 	if err != nil {
 		return
 	}
+	key, ok := keyData.(string)
+
+	if !ok {
+		return "", "", errors.New("invalid key encoding")
+	}
+
 	value, err = rdb.parseString()
 	if err != nil {
 		return

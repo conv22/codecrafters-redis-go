@@ -1,11 +1,7 @@
 package storage
 
-import (
-	"fmt"
-)
-
 type StorageCollection struct {
-	currStorageId StorageId
+	CurrStorageId StorageId
 	Storages      map[StorageId]*Storage
 }
 
@@ -21,23 +17,11 @@ func (collection *StorageCollection) SetStorageById(id StorageId, storage *Stora
 }
 
 func (collection *StorageCollection) GetCurrentStorage() *Storage {
-	storage, ok := collection.Storages[collection.currStorageId]
+	storage, ok := collection.Storages[collection.CurrStorageId]
 
 	if !ok {
 		newStorage := NewStorage()
-		collection.SetStorageById(collection.currStorageId, newStorage)
-		return newStorage
-	}
-
-	return storage
-}
-
-func (collection *StorageCollection) GetStorageById(id StorageId) *Storage {
-	storage, ok := collection.Storages[id]
-
-	if !ok {
-		newStorage := NewStorage()
-		collection.SetStorageById(collection.currStorageId, newStorage)
+		collection.SetStorageById(collection.CurrStorageId, newStorage)
 		return newStorage
 	}
 
@@ -47,11 +31,7 @@ func (collection *StorageCollection) GetStorageById(id StorageId) *Storage {
 func (collection *StorageCollection) SetItemToCurrentStorage(key StorageKey, item *StorageItem) error {
 	storage := collection.GetCurrentStorage()
 
-	fmt.Println(storage.CacheMap)
-
 	err := storage.Set(key, item)
-
-	fmt.Println(err)
 
 	if err != nil {
 		return err

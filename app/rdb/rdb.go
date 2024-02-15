@@ -12,10 +12,9 @@ import (
 
 type Rdb struct {
 	reader             *bufio.Reader
+	currItemExpiryTime *time.Time
 	version            int
 	collection         *storage.StorageCollection
-	currDbIdx          uint8
-	currItemExpiryTime *time.Time
 }
 
 func NewRdb() *Rdb {
@@ -24,23 +23,23 @@ func NewRdb() *Rdb {
 	}
 }
 
-func (rdb *Rdb) setItemToCurrentDB(key storage.StorageKey, encoding string, value interface{}) error {
-	currStorage := rdb.collection.GetStorageById(rdb.currDbIdx)
+func (rdb *Rdb) readObject(encoding byte, key string, currStorage *storage.Storage) error {
+	if encoding == RDB_ENCODING_STRING_ENCODING {
+		value, err := rdb.parseString()
 
-	err := currStorage.Set(key, &storage.StorageItem{
-		Expiry:   rdb.currItemExpiryTime,
-		Encoding: encoding,
-		Value:    value,
-	})
-	rdb.resetCurrentItemProps()
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+
+		currStorage.Set(key, &storage.StorageItem{
+			Expiry:   rdb.currItemExpiryTime,
+			Value:    value,
+			Encoding: encoding,
+		})
+
 	}
-	return nil
-}
 
-func (rdb *Rdb) resetCurrentItemProps() {
-	rdb.currItemExpiryTime = nil
+	return errors.New("not supported encoding")
 }
 
 func (rdb *Rdb) HandleRead(path string) (*storage.StorageCollection, error) {
@@ -69,14 +68,14 @@ out:
 	for {
 		opCode, err := rdb.readByte()
 
-		currStorage := rdb.collection.GetStorageById(rdb.currDbIdx)
-
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break out
 			}
 			return nil, err
 		}
+
+		currStorage := rdb.collection.GetCurrentStorage()
 
 		switch opCode {
 		case RDB_OPCODE_EOF:
@@ -86,8 +85,24 @@ out:
 			if err != nil {
 				return nil, err
 			}
-			rdb.currDbIdx = nextDbIdx
-		// TODO: skip item if expired
+			rdb.collection.CurrStorageId = nextDbIdx
+			continue out
+		case RDB_OPCODE_RESIZE_DB:
+			dbHashTableSize, expiryHashTableSize, err := rdb.parseResizeDb()
+			if err != nil {
+				return nil, err
+			}
+			currStorage.HashSize = dbHashTableSize
+			currStorage.ExpireHashSize = expiryHashTableSize
+			continue out
+		case RDB_OPCODE_AUX:
+			key, value, err := rdb.parseAux()
+			if err != nil {
+				return nil, err
+			}
+
+			currStorage.SetAuxField(key, value)
+			continue out
 		case RDB_OPCODE_EXPIRE_TIME:
 		case RDB_OPCODE_EXPIRE_TIME_MS:
 			var time *time.Time
@@ -102,36 +117,22 @@ out:
 			if err != nil {
 				return nil, err
 			}
-
 			rdb.currItemExpiryTime = time
-		case RDB_OPCODE_RESIZE_DB:
-			dbHashTableSize, expiryHashTableSize, err := rdb.parseResizeDb()
-			if err != nil {
-				return nil, err
-			}
-			currStorage.HashSize = dbHashTableSize
-			currStorage.ExpireHashSize = expiryHashTableSize
-		case RDB_OPCODE_AUX:
-			keyI, value, err := rdb.parseAux()
-			if err != nil {
-				return nil, err
-			}
-
-			key, ok := keyI.(string)
-
-			if !ok {
-				continue
-			}
-
-			rdb.setItemToCurrentDB(key, "", value)
-
-		default:
-			// not supported
-			continue
 		}
+
 		if err != nil {
 			return nil, err
 		}
+
+		key, err := rdb.parseString()
+
+		if err != nil {
+			return nil, err
+		}
+
+		rdb.readObject(opCode, key.(string), currStorage)
+
+		rdb.currItemExpiryTime = nil
 	}
 
 	return rdb.collection, nil
