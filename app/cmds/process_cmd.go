@@ -31,6 +31,7 @@ const (
 	CMD_SET    string = "set"
 	CMD_CONFIG string = "config"
 	CMD_KEYS   string = "keys"
+	CMD_INFO   string = "info"
 )
 
 func (processor *RespCmdProcessor) ProcessCmd(line string) string {
@@ -60,6 +61,8 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) string {
 		return processor.handleConfig(cmds)
 	case CMD_KEYS:
 		return processor.handleKeys(cmds)
+	case CMD_INFO:
+		return processor.handleInfo(cmds)
 	default:
 		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd")
 	}
