@@ -25,16 +25,17 @@ func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection,
 }
 
 const (
-	CMD_PING     string = "PING"
-	CMD_ECHO     string = "ECHO"
-	CMD_GET      string = "GET"
-	CMD_SET      string = "SET"
-	CMD_CONFIG   string = "CONFIG"
-	CMD_KEYS     string = "KEYS"
-	CMD_INFO     string = "INFO"
-	CMD_REPLCONF string = "REPLCONF"
-	CMD_PSYNC    string = "PSYNC"
-	CMD_OK       string = "OK"
+	CMD_PING        string = "PING"
+	CMD_ECHO        string = "ECHO"
+	CMD_GET         string = "GET"
+	CMD_SET         string = "SET"
+	CMD_CONFIG      string = "CONFIG"
+	CMD_KEYS        string = "KEYS"
+	CMD_INFO        string = "INFO"
+	CMD_REPLCONF    string = "REPLCONF"
+	CMD_PSYNC       string = "PSYNC"
+	CMD_OK          string = "OK"
+	CMD_FULL_RESYNC string = "FULLRESYNC"
 )
 
 func (processor *RespCmdProcessor) ProcessCmd(line string) string {
