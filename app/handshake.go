@@ -44,6 +44,12 @@ func handleHandshake() error {
 		return err
 	}
 
+	// Send psync
+
+	if err := sendPsyncCommand(masterConn); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -64,6 +70,22 @@ func sendPingCommand(conn net.Conn) error {
 
 	if err := sendCommand(writer, pingCommand); err != nil {
 		return errors.New("failed to send PING command: " + err.Error())
+	}
+	return nil
+}
+
+func sendPsyncCommand(conn net.Conn) error {
+	writer := bufio.NewWriter(conn)
+	defer writer.Flush()
+
+	psyncCommand := []resp.SliceEncoding{
+		{S: cmds.CMD_PSYNC, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
+		{S: "?", Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
+		{S: "-1", Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
+	}
+
+	if err := sendCommand(writer, psyncCommand); err != nil {
+		return errors.New("failed to send PSYNC command: " + err.Error())
 	}
 	return nil
 }

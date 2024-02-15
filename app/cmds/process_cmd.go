@@ -33,6 +33,7 @@ const (
 	CMD_KEYS     string = "KEYS"
 	CMD_INFO     string = "INFO"
 	CMD_REPLCONF string = "REPLCONF"
+	CMD_PSYNC    string = "PSYNC"
 )
 
 func (processor *RespCmdProcessor) ProcessCmd(line string) string {
