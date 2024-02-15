@@ -22,25 +22,6 @@ func NewRdb() *Rdb {
 	}
 }
 
-func (rdb *Rdb) readObject(encoding byte, key string, currStorage *storage.Storage) error {
-	if encoding == RDB_ENCODING_STRING_ENCODING {
-		value, err := rdb.parseString()
-
-		if err != nil {
-			return err
-		}
-
-		currStorage.Set(key, &storage.StorageItem{
-			ExpiryMs: rdb.currItemExpiryTime,
-			Value:    value,
-			Encoding: encoding,
-		})
-
-	}
-
-	return errors.New("not supported encoding")
-}
-
 func (rdb *Rdb) HandleRead(path string) (*storage.StorageCollection, error) {
 	file, err := os.Open(path)
 
@@ -124,13 +105,23 @@ out:
 			return nil, err
 		}
 
-		key, err := rdb.parseString()
+		parseStr, err := rdb.parseString()
 
 		if err != nil {
 			return nil, err
 		}
 
-		rdb.readObject(opCode, key.(string), currStorage)
+		key, ok := parseStr.(string)
+
+		if !ok {
+			return nil, errors.New("invalid encoding")
+		}
+
+		err = rdb.readObject(opCode, key, currStorage)
+
+		if errors.Is(RDB_UNSUPPORTED_ERROR, err) {
+			rdb.skipObject(opCode)
+		}
 
 		rdb.currItemExpiryTime = 0
 	}

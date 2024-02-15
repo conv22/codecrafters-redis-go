@@ -30,3 +30,5 @@ const (
 	// Magic redis string
 	RDB_MAGIC = "REDIS"
 )
+
+var SUPPORTED_ENCODINGS = []byte{RDB_ENCODING_STRING_ENCODING}
