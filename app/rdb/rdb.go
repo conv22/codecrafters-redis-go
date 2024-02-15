@@ -5,14 +5,13 @@ import (
 	"errors"
 	"io"
 	"os"
-	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
 type Rdb struct {
 	reader             *bufio.Reader
-	currItemExpiryTime *time.Time
+	currItemExpiryTime int64
 	version            int
 	collection         *storage.StorageCollection
 }
@@ -32,7 +31,7 @@ func (rdb *Rdb) readObject(encoding byte, key string, currStorage *storage.Stora
 		}
 
 		currStorage.Set(key, &storage.StorageItem{
-			Expiry:   rdb.currItemExpiryTime,
+			ExpiryMs: rdb.currItemExpiryTime,
 			Value:    value,
 			Encoding: encoding,
 		})
@@ -105,7 +104,7 @@ out:
 			continue out
 		case RDB_OPCODE_EXPIRE_TIME:
 		case RDB_OPCODE_EXPIRE_TIME_MS:
-			var time *time.Time
+			var time int64
 			var err error
 
 			if opCode == RDB_OPCODE_EXPIRE_TIME {
@@ -118,6 +117,7 @@ out:
 				return nil, err
 			}
 			rdb.currItemExpiryTime = time
+			continue out
 		}
 
 		if err != nil {
@@ -132,7 +132,7 @@ out:
 
 		rdb.readObject(opCode, key.(string), currStorage)
 
-		rdb.currItemExpiryTime = nil
+		rdb.currItemExpiryTime = 0
 	}
 
 	return rdb.collection, nil

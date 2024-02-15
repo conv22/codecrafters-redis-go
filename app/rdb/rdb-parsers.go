@@ -219,28 +219,27 @@ func (rdb *Rdb) parseSelectDb() (uint8, error) {
 }
 
 // The following 4 bytes represent the Unix timestamp as an unsigned integer.
-func (rdb *Rdb) parseExpiryTimeSec() (*time.Time, error) {
+func (rdb *Rdb) parseExpiryTimeSec() (unixTimestamp int64, err error) {
 	result, err := rdb.readBytes(RDB_EXPIRE_TIME_SEC_BYTES_LENGTH)
 	if err != nil {
-		return nil, err
+		return
 	}
-	unixTimestamp := binary.LittleEndian.Uint32(result)
-	expiryTime := time.Unix(int64(unixTimestamp), 0)
+	timeStamp := binary.LittleEndian.Uint32(result)
+	unixTimestamp = int64(timeStamp) * int64(time.Millisecond)
 
-	return &expiryTime, nil
+	return
 }
 
 // The following expiry value is specified in milliseconds. The following 8 bytes represent the Unix timestamp as an unsigned long.
-func (rdb *Rdb) parseExpiryTimeMs() (*time.Time, error) {
+func (rdb *Rdb) parseExpiryTimeMs() (unixTimestamp int64, err error) {
 	result, err := rdb.readBytes(RDB_EXPIRE_TIME_MS_BYTES_LENGTH)
 	if err != nil {
-		return nil, err
+		return
 	}
-	// Convert the Unix timestamp in milliseconds to a time.Time value
-	unixTimestampMs := binary.LittleEndian.Uint64(result)
-	expiryTime := time.Unix(0, int64(unixTimestampMs)*int64(time.Millisecond))
+	timeStampMs := binary.LittleEndian.Uint64(result)
+	unixTimestamp = int64(timeStampMs)
 
-	return &expiryTime, nil
+	return
 }
 func (rdb *Rdb) parseResizeDb() (dbHashTableSize, expiryHashTableSize int, err error) {
 	dbHashTableSize, _, err = rdb.parseLength()

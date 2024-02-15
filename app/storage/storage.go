@@ -1,8 +1,8 @@
 package storage
 
 import (
+	"fmt"
 	"sync"
-	"time"
 )
 
 type StorageKey = string
@@ -11,7 +11,7 @@ type StorageId = uint8
 
 type StorageItem struct {
 	Value    any
-	Expiry   *time.Time
+	ExpiryMs int64
 	Encoding byte
 }
 
@@ -32,6 +32,7 @@ func (ims *Storage) Get(key StorageKey) (*StorageItem, bool) {
 	ims.mu.RLock()
 	defer ims.mu.RUnlock()
 	value, ok := ims.CacheMap[key]
+	fmt.Println(value)
 	return value, ok
 }
 

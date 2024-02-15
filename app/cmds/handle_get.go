@@ -20,7 +20,7 @@ func (processor *RespCmdProcessor) handleGet(parsedResult []resp.ParsedCmd) stri
 		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}
 
-	if calculateIsExpired(value.Expiry) {
+	if calculateIsExpired(value.ExpiryMs) {
 		processor.storage.GetCurrentStorage().Delete(key)
 		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}
@@ -29,9 +29,10 @@ func (processor *RespCmdProcessor) handleGet(parsedResult []resp.ParsedCmd) stri
 
 }
 
-func calculateIsExpired(expirationTime *time.Time) bool {
-	if expirationTime == nil {
+func calculateIsExpired(expirationTime int64) bool {
+	if expirationTime == 0 {
 		return false
 	}
-	return time.Now().After(*expirationTime)
+	currentTime := time.Now().UnixMilli()
+	return currentTime > expirationTime
 }

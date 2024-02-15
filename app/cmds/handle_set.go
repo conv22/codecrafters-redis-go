@@ -35,7 +35,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) stri
 	}
 	key, value := parsedResult[0].Value, parsedResult[1].Value
 	var options setKeyOptions
-	var expirationTime *time.Time = nil
+	var expirationTime int64
 
 	if len(parsedResult) >= 3 {
 		options = getOptions(parsedResult[2:])
@@ -56,7 +56,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) stri
 		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}
 
-	processor.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, Expiry: expirationTime})
+	processor.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, ExpiryMs: expirationTime})
 	return processor.parser.HandleEncode(RespEncodingConstants.STRING, "OK")
 
 }
@@ -109,23 +109,20 @@ func getOptions(parsedResult []resp.ParsedCmd) setKeyOptions {
 	return options
 }
 
-func calculateExpirationTime(options setKeyOptions) *time.Time {
+func calculateExpirationTime(options setKeyOptions) (timeStamp int64) {
 	if options.EXAT > 0 {
-		exatTime := time.Unix(options.EXAT, 0)
-		return &exatTime
+		timeStamp = options.EXAT * int64(time.Millisecond)
 	}
 	if options.PXAT > 0 {
-		pxatSeconds := options.PXAT / 1000
-		pxatTime := time.Unix(pxatSeconds, 0)
-		return &pxatTime
+		timeStamp = options.PXAT
 	}
 	if options.EX > 0 {
-		exTime := time.Now().Add(time.Duration(options.EX) * time.Second)
-		return &exTime
+		timeStampUnix := time.Now().Add(time.Duration(options.EX) * time.Second).Unix()
+		timeStamp = timeStampUnix * int64(time.Millisecond)
 	}
 	if options.PX > 0 {
-		pxTime := time.Now().Add(time.Duration(options.PX) * time.Millisecond)
-		return &pxTime
+		timeStampUnixMilli := time.Now().Add(time.Duration(options.PX) * time.Millisecond).UnixMilli()
+		timeStamp = timeStampUnixMilli
 	}
-	return nil
+	return
 }
