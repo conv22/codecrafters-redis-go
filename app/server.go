@@ -20,6 +20,7 @@ import (
 var cfg = config.NewConfig()
 var rdbReader = rdb.NewRdb()
 var inMemoryStorage = initStorage()
+var parser = resp.NewRespParser()
 
 func initStorage() *storage.StorageCollection {
 	persistStorage, err := rdbReader.HandleRead(path.Join(cfg.DirFlag, cfg.DbFilenameFlag))
@@ -39,6 +40,22 @@ func main() {
 	}
 	defer listener.Close()
 
+	if cfg.IsReplica() {
+		replication := cfg.Replication
+		masterConn, err := net.Dial("tcp", replication.MasterAddress)
+		if err != nil {
+			fmt.Println("Master is not available", replication.MasterAddress)
+			os.Exit(1)
+		}
+		defer masterConn.Close()
+		masterConn.Write([]byte(parser.HandleEncodeSliceList([]resp.SliceEncoding{
+			{
+				S:        "ping",
+				Encoding: resp.RESP_ENCODING_CONSTANTS.STRING,
+			},
+		})))
+	}
+
 	var wg sync.WaitGroup
 
 	for {
@@ -55,7 +72,6 @@ func main() {
 func handleClient(conn net.Conn, wg *sync.WaitGroup, config *config.Config) {
 	defer conn.Close()
 	defer wg.Done()
-	parser := resp.NewRespParser()
 	cmdProcessor := cmds.NewRespCmdProcessor(parser, inMemoryStorage, config)
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
