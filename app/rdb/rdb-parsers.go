@@ -209,12 +209,6 @@ func (rdb *Rdb) parseAux() (key string, value interface{}, err error) {
 }
 
 func (rdb *Rdb) parseSelectDb() (uint8, error) {
-	_, err := rdb.readByte()
-
-	if err != nil {
-		return 0, err
-	}
-
 	dbNumber, _, err := rdb.parseLength()
 
 	if err != nil {
