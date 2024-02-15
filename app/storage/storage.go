@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -32,7 +31,6 @@ func (ims *Storage) Get(key StorageKey) (*StorageItem, bool) {
 	ims.mu.RLock()
 	defer ims.mu.RUnlock()
 	value, ok := ims.CacheMap[key]
-	fmt.Println(value)
 	return value, ok
 }
 

@@ -15,7 +15,7 @@ func (processor *RespCmdProcessor) handleKeys(parsedResult []resp.ParsedCmd) str
 			result = append(result, resp.SliceEncoding{S: key, Encoding: RespEncodingConstants.STRING})
 		}
 
-		return processor.parser.HandleEncodeSlice(result)
+		return processor.parser.HandleEncodeSliceList(result)
 
 	}
 

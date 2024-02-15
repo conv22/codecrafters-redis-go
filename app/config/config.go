@@ -2,11 +2,17 @@ package config
 
 import "flag"
 
+type ReplicationInfo struct {
+	Role         string
+	Offset       string
+	MasterReplId string
+}
+
 type Config struct {
 	DirFlag        string
 	DbFilenameFlag string
 	Port           string
-	Role           string
+	Replication    *ReplicationInfo
 }
 
 var (
@@ -29,6 +35,10 @@ func NewConfig() *Config {
 		DirFlag:        *dirFlag,
 		DbFilenameFlag: *dbFilenameFlag,
 		Port:           *port,
-		Role:           getRole(*replica),
+		Replication: &ReplicationInfo{
+			Role:         getRole(*replica),
+			MasterReplId: "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb",
+			Offset:       "0",
+		},
 	}
 }

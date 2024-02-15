@@ -41,7 +41,7 @@ func (processor *RespCmdProcessor) handleConfig(parsedResult []resp.ParsedCmd) s
 				{S: value, Encoding: RespEncodingConstants.BULK_STRING},
 			}
 
-			return processor.parser.HandleEncodeSlice(encodings)
+			return processor.parser.HandleEncodeSliceList(encodings)
 		}
 	default:
 		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "unsupported cmd")

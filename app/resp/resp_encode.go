@@ -2,10 +2,11 @@ package resp
 
 import (
 	"strconv"
+	"strings"
 )
 
 func encodeLengthData(encoding string, s string) string {
-	return encoding + strconv.Itoa(len(s)) + RESP_ENCODING_CONSTANTS.SEPARATOR + s + RESP_ENCODING_CONSTANTS.SEPARATOR
+	return encoding + strconv.Itoa(len([]byte(s))) + RESP_ENCODING_CONSTANTS.SEPARATOR + s + RESP_ENCODING_CONSTANTS.SEPARATOR
 }
 
 func encodeData(encoding string, s string) string {
@@ -17,16 +18,25 @@ type SliceEncoding struct {
 	Encoding string
 }
 
-func (parser RespParser) HandleEncodeSlice(slices []SliceEncoding) string {
+func (parser RespParser) HandleEncodeSliceList(slices []SliceEncoding) string {
 	length := strconv.Itoa(len(slices))
-	output := RESP_ENCODING_CONSTANTS.LENGTH + length + RESP_ENCODING_CONSTANTS.SEPARATOR
+	return parser.handleEncodeSlices(slices, RESP_ENCODING_CONSTANTS.LENGTH+length+RESP_ENCODING_CONSTANTS.SEPARATOR)
+}
 
-	for _, slice := range slices {
-		encodedValue := parser.HandleEncode(slice.Encoding, slice.S)
-		output += encodedValue
+func (parser RespParser) HandleEncodeSlices(slices []SliceEncoding) string {
+	return parser.handleEncodeSlices(slices, "")
+}
+func (parser RespParser) handleEncodeSlices(slices []SliceEncoding, prefix string) string {
+	builder := strings.Builder{}
+	if prefix != "" {
+		builder.WriteString(prefix)
 	}
 
-	return output
+	for _, slice := range slices {
+		builder.WriteString(parser.HandleEncode(slice.Encoding, slice.S))
+	}
+
+	return builder.String()
 }
 
 func (parser RespParser) HandleEncode(encoding string, s string) string {
@@ -39,6 +49,8 @@ func (parser RespParser) HandleEncode(encoding string, s string) string {
 		return encodeData(RESP_ENCODING_CONSTANTS.ERROR, s)
 	case RESP_ENCODING_CONSTANTS.BULK_STRING:
 		return encodeLengthData(RESP_ENCODING_CONSTANTS.BULK_STRING, s)
+	case RESP_ENCODING_CONSTANTS.SEPARATOR:
+		return s + RESP_ENCODING_CONSTANTS.SEPARATOR
 	default:
 		return ""
 	}
