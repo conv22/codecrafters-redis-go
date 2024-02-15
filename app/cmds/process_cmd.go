@@ -34,6 +34,7 @@ const (
 	CMD_INFO     string = "INFO"
 	CMD_REPLCONF string = "REPLCONF"
 	CMD_PSYNC    string = "PSYNC"
+	CMD_OK       string = "OK"
 )
 
 func (processor *RespCmdProcessor) ProcessCmd(line string) string {

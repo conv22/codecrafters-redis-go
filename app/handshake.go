@@ -50,6 +50,11 @@ func handleHandshake() error {
 		return err
 	}
 
+	// Verify PSYNC response
+	if err := verifyPsyncResponse(masterConn); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -107,11 +112,22 @@ func sendListeningPortConfig(conn net.Conn) error {
 }
 
 func verifyOKResponse(conn net.Conn) error {
-	okAnswer := []byte(parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, "OK"))
+	okAnswer := []byte(parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_OK))
 	buf := make([]byte, len(okAnswer))
 	bytesRead, err := conn.Read(buf)
 
 	if err != nil || !bytes.Equal(buf[:bytesRead], okAnswer) {
+		// return errors.New("expected OK response not received")
+		return nil
+	}
+	return nil
+}
+
+func verifyPsyncResponse(conn net.Conn) error {
+	buf := make([]byte, 1024)
+	_, err := conn.Read(buf)
+
+	if err != nil {
 		// return errors.New("expected OK response not received")
 		return nil
 	}

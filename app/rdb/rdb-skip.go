@@ -75,10 +75,11 @@ func (rdb *Rdb) skipObject(encType byte) (skipStrings int, err error) {
 	switch encType {
 	case RDB_ENCODING_STRING_ENCODING:
 		skipStrings = 1
-	case RDB_ENCODING_LIST_ENCODING, RDB_ENCODING_SET_ENCODING,
-		RDB_ENCODING_LIST_QUICKLIST_ENCODING:
+	case RDB_ENCODING_LIST_ENCODING, RDB_ENCODING_SET_ENCODING:
+	case RDB_ENCODING_LIST_QUICKLIST_ENCODING:
 		skipStrings, _, err = rdb.parseLength()
-	case RDB_ENCODING_SORTED_SET_ENCODING, RDB_ENCODING_SORTED_SET_ZIPLIST_ENCODING:
+	case RDB_ENCODING_SORTED_SET_ENCODING:
+	case RDB_ENCODING_SORTED_SET_ZIPLIST_ENCODING:
 		length, _, err := rdb.parseLength()
 		if err != nil {
 			return 0, err
