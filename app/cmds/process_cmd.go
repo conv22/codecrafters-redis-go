@@ -67,6 +67,8 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) string {
 		return processor.handleInfo(cmds)
 	case CMD_REPLCONF:
 		return processor.handleReplConf(cmds)
+	case CMD_PSYNC:
+		return processor.handlePsync(cmds)
 	default:
 		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd")
 	}
