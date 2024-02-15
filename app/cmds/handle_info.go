@@ -13,7 +13,8 @@ func (processor *RespCmdProcessor) handleInfo(parsedResult []resp.ParsedCmd) str
 
 	switch parsedResult[0].Value {
 	case INFO_CMD_REPLICATION:
-		return processor.parser.HandleEncode(RespEncodingConstants.BULK_STRING, "role:master")
+		str := "role:" + processor.config.Role
+		return processor.parser.HandleEncode(RespEncodingConstants.BULK_STRING, str)
 	default:
 		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "invalid argument")
 	}
