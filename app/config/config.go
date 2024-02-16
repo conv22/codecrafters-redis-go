@@ -24,6 +24,7 @@ func (config Config) IsReplica() bool {
 
 func NewConfig() *Config {
 	flag.Parse()
+	// Todo: handle flags differently
 	flagArgs := flag.Args()
 	return &Config{
 		DirFlag:        *dirFlag,

@@ -26,6 +26,7 @@ func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection,
 
 const (
 	CMD_PING        string = "PING"
+	CMD_PONG        string = "PONG"
 	CMD_ECHO        string = "ECHO"
 	CMD_GET         string = "GET"
 	CMD_SET         string = "SET"

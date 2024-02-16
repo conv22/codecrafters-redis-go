@@ -74,6 +74,10 @@ func (rdb *Rdb) skipString() (bytesToSkip int, err error) {
 func (rdb *Rdb) skipObject(encType byte) (skipStrings int, err error) {
 	switch encType {
 	case RDB_ENCODING_STRING_ENCODING:
+	case RDB_ENCODING_ZIPMAP_ENCODING:
+	case RDB_ENCODING_ZIPLIST_ENCODING:
+	case RDB_ENCODING_HASHMAP_ZIPLIST_ENCODING:
+	case RDB_ENCODING_INTSET_ENCODING:
 		skipStrings = 1
 	case RDB_ENCODING_LIST_ENCODING, RDB_ENCODING_SET_ENCODING:
 	case RDB_ENCODING_LIST_QUICKLIST_ENCODING:
@@ -107,12 +111,7 @@ func (rdb *Rdb) skipObject(encType byte) (skipStrings int, err error) {
 			return
 		}
 		skipStrings *= 2
-	case RDB_ENCODING_ZIPMAP_ENCODING:
-	case RDB_ENCODING_ZIPLIST_ENCODING:
-	case RDB_ENCODING_HASHMAP_ZIPLIST_ENCODING:
-		skipStrings = 1
-	case RDB_ENCODING_INTSET_ENCODING:
-		skipStrings = 1
+
 	default:
 		err = errors.New("invalid object type")
 		return

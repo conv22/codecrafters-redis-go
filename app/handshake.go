@@ -24,6 +24,11 @@ func handleHandshake() error {
 		return err
 	}
 
+	// Verify PING response from master
+	if err := verifyPingResponse(masterConn); err != nil {
+		return err
+	}
+
 	// Send listening port configuration
 	if err := sendListeningPortConfig(masterConn); err != nil {
 		return err
@@ -111,27 +116,45 @@ func sendListeningPortConfig(conn net.Conn) error {
 	return nil
 }
 
+func verifyPingResponse(conn net.Conn) error {
+	pingAnswer := []byte(parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_PONG))
+	response, err := getResponse(conn, len(pingAnswer))
+
+	if err != nil || !bytes.Equal(pingAnswer, response) {
+		return errors.New(cmds.CMD_PONG + err.Error())
+	}
+	return nil
+}
+
 func verifyOKResponse(conn net.Conn) error {
 	okAnswer := []byte(parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_OK))
-	buf := make([]byte, len(okAnswer))
-	bytesRead, err := conn.Read(buf)
+	response, err := getResponse(conn, len(okAnswer))
 
-	if err != nil || !bytes.Equal(buf[:bytesRead], okAnswer) {
-		// return errors.New("expected OK response not received")
-		return nil
+	if err != nil || !bytes.Equal(okAnswer, response) {
+		return errors.New(cmds.CMD_OK + err.Error())
 	}
 	return nil
 }
 
 func verifyPsyncResponse(conn net.Conn) error {
-	buf := make([]byte, 1024)
-	_, err := conn.Read(buf)
+	_, err := getResponse(conn, 1024)
 
 	if err != nil {
-		// return errors.New("expected OK response not received")
-		return nil
+		return errors.New(cmds.CMD_PSYNC + err.Error())
 	}
 	return nil
+}
+
+func getResponse(conn net.Conn, bufLength int) ([]byte, error) {
+	buf := make([]byte, bufLength)
+
+	bytesToRead, err := conn.Read(buf)
+
+	if err != nil {
+		return nil, errors.New("expected OK response not received")
+	}
+
+	return buf[0:bytesToRead], nil
 }
 
 func sendCapabilityConfig(conn net.Conn) error {
