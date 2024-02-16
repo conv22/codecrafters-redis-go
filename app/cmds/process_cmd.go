@@ -39,15 +39,15 @@ const (
 	CMD_FULL_RESYNC string = "FULLRESYNC"
 )
 
-func (processor *RespCmdProcessor) ProcessCmd(line string) string {
+func (processor *RespCmdProcessor) ProcessCmd(line string) (str string, strSlice []string, isSlice bool) {
 	parsedResult, err := processor.parser.HandleParse(line)
 
 	if err != nil {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "error parsing the line")
+		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "error parsing the line"), nil, false
 	}
 
 	if len(parsedResult) == 0 {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
+		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments"), nil, false
 	}
 
 	firstCmd := strings.ToUpper(parsedResult[0].Value)
@@ -55,24 +55,24 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) string {
 
 	switch firstCmd {
 	case CMD_PING:
-		return processor.handlePing()
+		return processor.handlePing(), nil, false
 	case CMD_ECHO:
-		return processor.handleEcho(cmds)
+		return processor.handleEcho(cmds), nil, false
 	case CMD_SET:
-		return processor.handleSet(cmds)
+		return processor.handleSet(cmds), nil, false
 	case CMD_GET:
-		return processor.handleGet(cmds)
+		return processor.handleGet(cmds), nil, false
 	case CMD_CONFIG:
-		return processor.handleConfig(cmds)
+		return processor.handleConfig(cmds), nil, false
 	case CMD_KEYS:
-		return processor.handleKeys(cmds)
+		return processor.handleKeys(cmds), nil, false
 	case CMD_INFO:
-		return processor.handleInfo(cmds)
+		return processor.handleInfo(cmds), nil, false
 	case CMD_REPLCONF:
-		return processor.handleReplConf(cmds)
+		return processor.handleReplConf(cmds), nil, false
 	case CMD_PSYNC:
-		return processor.handlePsync(cmds)
+		return "", processor.handlePsync(cmds), true
 	default:
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd")
+		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd"), nil, false
 	}
 }

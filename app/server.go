@@ -80,9 +80,17 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 
 		line := string(buf[:bytesRead])
 
-		response := cmdProcessor.ProcessCmd(line)
+		str, strSlice, isSlice := cmdProcessor.ProcessCmd(line)
 
-		writer.Write([]byte(response))
+		if isSlice {
+			fmt.Println(strSlice)
+			for _, str := range strSlice {
+				writer.Write([]byte(str))
+			}
+		} else {
+			writer.Write([]byte(str))
+		}
+
 		if err := writer.Flush(); err != nil {
 			break
 		}

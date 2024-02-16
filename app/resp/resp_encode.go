@@ -6,7 +6,7 @@ import (
 )
 
 func encodeLengthData(encoding string, s string) string {
-	return encoding + strconv.Itoa(len([]byte(s))) + RESP_ENCODING_CONSTANTS.SEPARATOR + s + RESP_ENCODING_CONSTANTS.SEPARATOR
+	return encoding + strconv.Itoa(len(s)) + RESP_ENCODING_CONSTANTS.SEPARATOR + s + RESP_ENCODING_CONSTANTS.SEPARATOR
 }
 
 func encodeData(encoding string, s string) string {
