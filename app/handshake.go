@@ -64,10 +64,9 @@ func handleHandshake() error {
 }
 
 func connectToMaster() (net.Conn, error) {
-	replication := cfg.Replication
-	masterConn, err := net.Dial("tcp", replication.MasterAddress)
+	masterConn, err := net.Dial("tcp", replicationInfo.MasterAddress)
 	if err != nil {
-		return nil, errors.New("failed to connect to master: " + replication.MasterAddress)
+		return nil, errors.New("failed to connect to master: " + replicationInfo.MasterAddress)
 	}
 	return masterConn, nil
 }

@@ -17,9 +17,9 @@ func (processor *RespCmdProcessor) handlePsync(parsedResult []resp.ParsedCmd) []
 	builder := strings.Builder{}
 	builder.WriteString(CMD_FULL_RESYNC)
 	builder.WriteString(" ")
-	builder.WriteString(processor.config.Replication.MasterReplId)
+	builder.WriteString(processor.replication.MasterReplId)
 	builder.WriteString(" ")
-	builder.WriteString(processor.config.Replication.Offset)
+	builder.WriteString(processor.replication.Offset)
 
 	decoded, err := hex.DecodeString(EMPTY_DB_HEX)
 

@@ -15,7 +15,7 @@ func (processor *RespCmdProcessor) handleInfo(parsedResult []resp.ParsedCmd) str
 
 	switch parsedResult[0].Value {
 	case INFO_CMD_REPLICATION:
-		replication := processor.config.Replication
+		replication := processor.replication
 		data := []resp.SliceEncoding{
 			{S: "role:" + replication.Role, Encoding: resp.RESP_ENCODING_CONSTANTS.SEPARATOR},
 			{S: "master_replid:" + replication.MasterReplId, Encoding: resp.RESP_ENCODING_CONSTANTS.SEPARATOR},
