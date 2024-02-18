@@ -41,6 +41,28 @@ func (replication ReplicationInfo) IsMaster() bool {
 	return replication.Role == REPLICATION_MASTER_ROLE
 }
 
+func GetReplicationAddress(conn net.Conn) (string, error) {
+	masterLocalAddr := conn.LocalAddr().String()
+	host, port, err := net.SplitHostPort(masterLocalAddr)
+	if err != nil {
+		return "", err
+	}
+
+	return net.JoinHostPort(host, port), nil
+}
+
+func (replication ReplicationInfo) IsReplicaClient(conn net.Conn) bool {
+	connAddress, err := GetReplicationAddress(conn)
+
+	if err != nil {
+		return false
+	}
+
+	_, hasReplica := replication.Replicas[connAddress]
+
+	return hasReplica
+}
+
 func getMasterAddress(replicaFlag string, flags []string) (masterAddress string) {
 	if len(flags) != 1 {
 		return replicaFlag

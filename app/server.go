@@ -13,6 +13,7 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/cmds"
 	"github.com/codecrafters-io/redis-starter-go/app/config"
 	"github.com/codecrafters-io/redis-starter-go/app/rdb"
+	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
@@ -21,7 +22,9 @@ var cfg = config.NewConfig()
 var rdbReader = rdb.NewRdb()
 var inMemoryStorage = initStorage()
 var parser = resp.NewRespParser()
-var cmdProcessor = cmds.NewRespCmdProcessor(parser, inMemoryStorage, cfg)
+var replicationInfo = replication.NewReplicationInfo()
+
+var replicationLock sync.Mutex
 
 func initStorage() *storage.StorageCollection {
 	persistStorage, err := rdbReader.HandleRead(path.Join(cfg.DirFlag, cfg.DbFilenameFlag))
@@ -41,7 +44,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	if cfg.IsReplica() {
+	if replicationInfo.IsReplica() {
 		err := handleHandshake()
 		if err != nil {
 			fmt.Println(err.Error())
@@ -49,24 +52,20 @@ func main() {
 		}
 	}
 
-	var wg sync.WaitGroup
-
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Error:", err)
 			continue
 		}
-		wg.Add(1)
-		go handleClient(conn, &wg)
+		go handleClient(conn)
 	}
 }
 
-func handleClient(conn net.Conn, wg *sync.WaitGroup) {
-	defer conn.Close()
-	defer wg.Done()
+func handleClient(conn net.Conn) {
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
+	cmdProcessor := cmds.NewRespCmdProcessor(parser, inMemoryStorage, cfg, replicationInfo, conn)
 
 	for {
 		bytesRead, err := conn.Read(buf)
@@ -78,17 +77,19 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 			break
 		}
 
-		line := string(buf[:bytesRead])
+		bytesData := buf[:bytesRead]
+		line := string(bytesData)
 
-		str, strSlice, isSlice := cmdProcessor.ProcessCmd(line)
+		processedResult := cmdProcessor.ProcessCmd(line)
 
-		if isSlice {
-			fmt.Println(strSlice)
-			for _, str := range strSlice {
-				writer.Write([]byte(str))
+		for _, item := range processedResult {
+			if len(item.Answer) > 0 {
+				writer.Write([]byte(item.Answer))
 			}
-		} else {
-			writer.Write([]byte(str))
+
+			if item.IsDuplicate && replicationInfo.IsMaster() {
+				go handleSyncWithReplica(bytesData)
+			}
 		}
 
 		if err := writer.Flush(); err != nil {
@@ -96,4 +97,21 @@ func handleClient(conn net.Conn, wg *sync.WaitGroup) {
 		}
 
 	}
+
+	if !replicationInfo.IsReplicaClient(conn) {
+		conn.Close()
+	}
+
+}
+
+func handleSyncWithReplica(cmd []byte) {
+	replicationLock.Lock()
+
+	// TODO: send cmds only once replica is active
+	for _, replica := range replicationInfo.Replicas {
+		replica.Writer.Write(cmd)
+		replica.Writer.Flush()
+	}
+	replicationLock.Unlock()
+
 }

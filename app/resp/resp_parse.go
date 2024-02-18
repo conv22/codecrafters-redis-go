@@ -6,11 +6,7 @@ import (
 	"strings"
 )
 
-func parseLength(s string, arrayLength *int, result *[]ParsedCmd) (string, error) {
-	if *arrayLength > 0 {
-		return "", errors.New("invalid input")
-	}
-
+func parseLength(s string, arrayLength *int, result *[][]ParsedCmd, currIndex int) (string, error) {
 	separatorIndex := strings.Index(s, RESP_ENCODING_CONSTANTS.SEPARATOR)
 	if separatorIndex == -1 {
 		return "", errors.New("separator not found")
@@ -28,7 +24,7 @@ func parseLength(s string, arrayLength *int, result *[]ParsedCmd) (string, error
 	return value, nil
 }
 
-func parseLengthData(s string, encoding string, result *[]ParsedCmd) (string, error) {
+func parseLengthData(s string, encoding string, result *[][]ParsedCmd, currIndex int) (string, error) {
 	separatorIndex := strings.Index(s, RESP_ENCODING_CONSTANTS.SEPARATOR)
 	if separatorIndex == -1 {
 		return "", errors.New("separator not found")
@@ -50,13 +46,14 @@ func parseLengthData(s string, encoding string, result *[]ParsedCmd) (string, er
 		Value:     data,
 		ValueType: encoding,
 	}
-	*result = append(*result, *item)
+	appendItemToResult(result, item, currIndex)
+
 	value = value[count+len(RESP_ENCODING_CONSTANTS.SEPARATOR):]
 
 	return value, nil
 }
 
-func parseData(s string, encoding string, result *[]ParsedCmd) (string, error) {
+func parseData(s string, encoding string, result *[][]ParsedCmd, currIndex int) (string, error) {
 	separatorIndex := strings.Index(s, RESP_ENCODING_CONSTANTS.SEPARATOR)
 	if separatorIndex == -1 {
 		return "", errors.New("separator not found")
@@ -70,50 +67,64 @@ func parseData(s string, encoding string, result *[]ParsedCmd) (string, error) {
 	}
 	value := s[separatorIndex+len(RESP_ENCODING_CONSTANTS.SEPARATOR):]
 
-	*result = append(*result, *item)
+	appendItemToResult(result, item, currIndex)
 
 	return value, nil
 }
 
-func parseInteger(s string, result *[]ParsedCmd) (string, error) {
-	return parseData(s, RESP_ENCODING_CONSTANTS.INTEGER, result)
+func appendItemToResult(result *[][]ParsedCmd, item *ParsedCmd, currIndex int) {
+	if len(*result) > currIndex {
+		(*result)[currIndex] = append((*result)[currIndex], *item)
+
+	} else {
+		newSlice := []ParsedCmd{*item}
+		*result = append(*result, newSlice)
+	}
 }
 
-func parseBulkString(s string, result *[]ParsedCmd) (string, error) {
-	return parseLengthData(s, RESP_ENCODING_CONSTANTS.BULK_STRING, result)
+func parseInteger(s string, result *[][]ParsedCmd, currIndex int) (string, error) {
+	return parseData(s, RESP_ENCODING_CONSTANTS.INTEGER, result, currIndex)
 }
 
-func parseString(s string, result *[]ParsedCmd) (string, error) {
-	return parseData(s, RESP_ENCODING_CONSTANTS.STRING, result)
+func parseBulkString(s string, result *[][]ParsedCmd, currIndex int) (string, error) {
+	return parseLengthData(s, RESP_ENCODING_CONSTANTS.BULK_STRING, result, currIndex)
 }
 
-func parseError(s string, result *[]ParsedCmd) (string, error) {
-	return parseData(s, RESP_ENCODING_CONSTANTS.ERROR, result)
+func parseString(s string, result *[][]ParsedCmd, currIndex int) (string, error) {
+	return parseData(s, RESP_ENCODING_CONSTANTS.STRING, result, currIndex)
 }
 
-func (parser *RespParser) parseValue(s string, arrayLength *int, result *[]ParsedCmd) (string, error) {
+func parseError(s string, result *[][]ParsedCmd, currIndex int) (string, error) {
+	return parseData(s, RESP_ENCODING_CONSTANTS.ERROR, result, currIndex)
+}
 
+func (parser *RespParser) parseValue(s string, result *[][]ParsedCmd) (string, error) {
+	var currArrLength int
+	var currIndex int
 	firstChar := string(s[0])
 	str := s[1:]
 	switch firstChar {
 	case RESP_ENCODING_CONSTANTS.LENGTH:
-		return parseLength(str, arrayLength, result)
+		if currArrLength > 0 {
+			currArrLength = 0
+			currIndex++
+		}
+		return parseLength(str, &currArrLength, result, currIndex)
 	case RESP_ENCODING_CONSTANTS.BULK_STRING:
-		return parseBulkString(str, result)
+		return parseBulkString(str, result, currIndex)
 	case RESP_ENCODING_CONSTANTS.ERROR:
-		return parseError(str, result)
+		return parseError(str, result, currIndex)
 	case RESP_ENCODING_CONSTANTS.STRING:
-		return parseString(str, result)
+		return parseString(str, result, currIndex)
 	case RESP_ENCODING_CONSTANTS.INTEGER:
-		return parseInteger(str, result)
+		return parseInteger(str, result, currIndex)
 	default:
 		return "", errors.New("invalid input")
 	}
 }
 
-func (parser *RespParser) HandleParse(s string) ([]ParsedCmd, error) {
-	var arrayLength int
-	var result = []ParsedCmd{}
+func (parser *RespParser) HandleParse(s string) ([][]ParsedCmd, error) {
+	var result = [][]ParsedCmd{}
 
 	if len(s) == 0 {
 		return result, nil
@@ -125,16 +136,12 @@ func (parser *RespParser) HandleParse(s string) ([]ParsedCmd, error) {
 	str := strings.Clone(s)
 
 	for len(str) != 0 {
-		parsedValue, err := parser.parseValue(str, &arrayLength, &result)
+		parsedValue, err := parser.parseValue(str, &result)
 		if err != nil {
 			return nil, err
 		}
 		str = parsedValue
 
-	}
-
-	if arrayLength != 0 && arrayLength != len(result) {
-		return nil, errors.New("invalid input")
 	}
 
 	return result, nil

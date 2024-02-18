@@ -112,10 +112,17 @@ func TestParseRESPV2(t *testing.T) {
 				t.Errorf("Unexpected error: %v", err)
 			}
 
-			// Check output
-			if !reflect.DeepEqual(result, test.expectedOutput) {
-				t.Errorf("Unexpected output. Expected: %v, Got: %v", test.expectedOutput, result)
+			if len(result) >= 1 {
+				if !reflect.DeepEqual(result[0], test.expectedOutput) {
+					t.Errorf("Unexpected output. Expected: %v, Got: %v", test.expectedOutput, result)
+				}
+			} else {
+				if len(test.expectedOutput) > 0 {
+					t.Errorf("Unexpected output. Expected: %v, Got: %v", test.expectedOutput, result)
+
+				}
 			}
+
 		})
 	}
 }

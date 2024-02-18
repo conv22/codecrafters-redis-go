@@ -6,16 +6,21 @@ import (
 )
 
 type ReplicaClient struct {
-	conn     net.Conn
-	BuffCmds [][]byte
-	Writer   *bufio.Writer
+	IsActive      bool
+	ReplicationId string
+	Offset        string
+	conn          net.Conn
+	Writer        *bufio.Writer
+	listeningPort string
+
 	// capa     string
 	// psync2   string
 }
 
-func NewReplicaClient(conn net.Conn) *ReplicaClient {
+func NewReplicaClient(conn net.Conn, listeningPort string) *ReplicaClient {
 	return &ReplicaClient{
-		conn:   conn,
-		Writer: bufio.NewWriter(conn),
+		conn:          conn,
+		Writer:        bufio.NewWriter(conn),
+		listeningPort: listeningPort,
 	}
 }

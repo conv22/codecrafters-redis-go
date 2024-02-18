@@ -1,9 +1,11 @@
 package cmds
 
 import (
+	"net"
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/config"
+	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
@@ -11,16 +13,20 @@ import (
 var RespEncodingConstants = resp.RESP_ENCODING_CONSTANTS
 
 type RespCmdProcessor struct {
-	parser  *resp.RespParser
-	storage *storage.StorageCollection
-	config  *config.Config
+	parser      *resp.RespParser
+	storage     *storage.StorageCollection
+	config      *config.Config
+	replication *replication.ReplicationInfo
+	connection  net.Conn
 }
 
-func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection, config *config.Config) *RespCmdProcessor {
+func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationInfo, conn net.Conn) *RespCmdProcessor {
 	return &RespCmdProcessor{
-		parser:  p,
-		storage: storage,
-		config:  config,
+		parser:      p,
+		storage:     storage,
+		config:      config,
+		replication: replication,
+		connection:  conn,
 	}
 }
 
@@ -39,40 +45,70 @@ const (
 	CMD_FULL_RESYNC string = "FULLRESYNC"
 )
 
-func (processor *RespCmdProcessor) ProcessCmd(line string) (str string, strSlice []string, isSlice bool) {
-	parsedResult, err := processor.parser.HandleParse(line)
+type ProcessCmdResult struct {
+	Answer      string
+	IsDuplicate bool
+}
+
+func (processor *RespCmdProcessor) ProcessCmd(line string) []ProcessCmdResult {
+	result := []ProcessCmdResult{}
+	parsedLines, err := processor.parser.HandleParse(line)
 
 	if err != nil {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "error parsing the line"), nil, false
+		return []ProcessCmdResult{{Answer: processor.parser.HandleEncode(RespEncodingConstants.ERROR, "error parsing the line")}}
 	}
 
-	if len(parsedResult) == 0 {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments"), nil, false
+	if len(parsedLines) == 0 {
+		return []ProcessCmdResult{{Answer: processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")}}
 	}
 
-	firstCmd := strings.ToUpper(parsedResult[0].Value)
-	cmds := parsedResult[1:]
+	for _, parsedLine := range parsedLines {
 
-	switch firstCmd {
-	case CMD_PING:
-		return processor.handlePing(), nil, false
-	case CMD_ECHO:
-		return processor.handleEcho(cmds), nil, false
-	case CMD_SET:
-		return processor.handleSet(cmds), nil, false
-	case CMD_GET:
-		return processor.handleGet(cmds), nil, false
-	case CMD_CONFIG:
-		return processor.handleConfig(cmds), nil, false
-	case CMD_KEYS:
-		return processor.handleKeys(cmds), nil, false
-	case CMD_INFO:
-		return processor.handleInfo(cmds), nil, false
-	case CMD_REPLCONF:
-		return processor.handleReplConf(cmds), nil, false
-	case CMD_PSYNC:
-		return "", processor.handlePsync(cmds), true
-	default:
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd"), nil, false
+		firstCmd := strings.ToUpper(parsedLine[0].Value)
+		cmds := parsedLine[1:]
+
+		switch firstCmd {
+		case CMD_PING:
+			result = append(result, ProcessCmdResult{Answer: processor.handlePing()})
+		case CMD_ECHO:
+			result = append(result, ProcessCmdResult{Answer: processor.handleEcho(cmds)})
+		case CMD_SET:
+			result = append(result, ProcessCmdResult{Answer: processor.handleSet(cmds), IsDuplicate: true})
+		case CMD_GET:
+			result = append(result, ProcessCmdResult{Answer: processor.handleGet(cmds)})
+		case CMD_CONFIG:
+			result = append(result, ProcessCmdResult{Answer: processor.handleConfig(cmds)})
+		case CMD_KEYS:
+			result = append(result, ProcessCmdResult{Answer: processor.handleKeys(cmds)})
+		case CMD_INFO:
+			result = append(result, ProcessCmdResult{Answer: processor.handleInfo(cmds)})
+
+		case CMD_REPLCONF:
+			result = append(result, ProcessCmdResult{Answer: processor.handleReplConf(cmds)})
+
+		case CMD_PSYNC:
+			answerSlice := processor.handlePsync(cmds)
+
+			for _, answer := range answerSlice {
+				result = append(result, ProcessCmdResult{Answer: answer})
+			}
+		default:
+			result = append(result, ProcessCmdResult{Answer: processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd")})
+		}
 	}
+	return result
+}
+
+func (processor *RespCmdProcessor) isCmdFromMaster() bool {
+	if processor.replication.IsMaster() {
+		return false
+	}
+
+	replicationAddress, err := replication.GetReplicationAddress(processor.connection)
+
+	if err != nil {
+		return false
+	}
+
+	return processor.replication.MasterAddress == replicationAddress
 }

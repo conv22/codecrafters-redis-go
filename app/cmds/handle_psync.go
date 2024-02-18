@@ -3,7 +3,9 @@ package cmds
 import (
 	"encoding/hex"
 	"strings"
+	"sync"
 
+	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
@@ -11,8 +13,22 @@ const EMPTY_DB_HEX string = "524544495330303131fa0972656469732d76657205372e322e3
 
 func (processor *RespCmdProcessor) handlePsync(parsedResult []resp.ParsedCmd) []string {
 	if len(parsedResult) < 2 {
-		processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
+		return []string{processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")}
 	}
+
+	replicationAddress, err := replication.GetReplicationAddress(processor.connection)
+
+	if err != nil || processor.replication.Replicas[replicationAddress] == nil {
+		return []string{processor.parser.HandleEncode(RespEncodingConstants.ERROR, "Invalid connection address")}
+	}
+
+	offset, replicationId := parsedResult[0], parsedResult[1]
+	var replicationLock sync.Mutex
+	replica := processor.replication.Replicas[replicationAddress]
+	replicationLock.Lock()
+	replica.ReplicationId = replicationId.Value
+	replica.Offset = offset.Value
+	replicationLock.Unlock()
 
 	builder := strings.Builder{}
 	builder.WriteString(CMD_FULL_RESYNC)

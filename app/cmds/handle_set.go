@@ -57,6 +57,11 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) stri
 	}
 
 	processor.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, ExpiryMs: expirationTime})
+
+	if processor.isCmdFromMaster() {
+		return ""
+	}
+
 	return processor.parser.HandleEncode(RespEncodingConstants.STRING, CMD_OK)
 
 }

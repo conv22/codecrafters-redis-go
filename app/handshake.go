@@ -17,8 +17,6 @@ func handleHandshake() error {
 		return err
 	}
 
-	defer masterConn.Close()
-
 	// Send PING command
 	if err := sendPingCommand(masterConn); err != nil {
 		return err
