@@ -17,16 +17,14 @@ type RespCmdProcessor struct {
 	storage     *storage.StorageCollection
 	config      *config.Config
 	replication *replication.ReplicationInfo
-	connection  net.Conn
 }
 
-func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationInfo, conn net.Conn) *RespCmdProcessor {
+func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationInfo) *RespCmdProcessor {
 	return &RespCmdProcessor{
 		parser:      p,
 		storage:     storage,
 		config:      config,
 		replication: replication,
-		connection:  conn,
 	}
 }
 
@@ -47,12 +45,26 @@ const (
 
 type ProcessCmdResult struct {
 	Answer      string
+	BytesInput  []byte
 	IsDuplicate bool
 }
 
-func (processor *RespCmdProcessor) ProcessCmd(line string) []ProcessCmdResult {
+func (processor *RespCmdProcessor) getBytesInputFromCmds(cmds []resp.ParsedCmd) []byte {
+	outputSlices := []resp.SliceEncoding{}
+
+	for _, cmd := range cmds {
+		outputSlices = append(outputSlices, resp.SliceEncoding{
+			S: cmd.Value, Encoding: cmd.ValueType,
+		})
+	}
+
+	return []byte(processor.parser.HandleEncodeSliceList(outputSlices))
+
+}
+
+func (processor *RespCmdProcessor) ProcessCmd(data []byte, conn net.Conn) []ProcessCmdResult {
 	result := []ProcessCmdResult{}
-	parsedLines, err := processor.parser.HandleParse(line)
+	parsedLines, err := processor.parser.HandleParse(string(data))
 
 	if err != nil {
 		return []ProcessCmdResult{{Answer: processor.parser.HandleEncode(RespEncodingConstants.ERROR, "error parsing the line")}}
@@ -73,7 +85,7 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) []ProcessCmdResult {
 		case CMD_ECHO:
 			result = append(result, ProcessCmdResult{Answer: processor.handleEcho(cmds)})
 		case CMD_SET:
-			result = append(result, ProcessCmdResult{Answer: processor.handleSet(cmds), IsDuplicate: true})
+			result = append(result, ProcessCmdResult{Answer: processor.handleSet(cmds, processor.isCmdFromMaster(conn)), IsDuplicate: true, BytesInput: processor.getBytesInputFromCmds(parsedLine)})
 		case CMD_GET:
 			result = append(result, ProcessCmdResult{Answer: processor.handleGet(cmds)})
 		case CMD_CONFIG:
@@ -84,10 +96,10 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) []ProcessCmdResult {
 			result = append(result, ProcessCmdResult{Answer: processor.handleInfo(cmds)})
 
 		case CMD_REPLCONF:
-			result = append(result, ProcessCmdResult{Answer: processor.handleReplConf(cmds)})
+			result = append(result, ProcessCmdResult{Answer: processor.handleReplConf(cmds, conn)})
 
 		case CMD_PSYNC:
-			answerSlice := processor.handlePsync(cmds)
+			answerSlice := processor.handlePsync(cmds, conn)
 
 			for _, answer := range answerSlice {
 				result = append(result, ProcessCmdResult{Answer: answer})
@@ -99,12 +111,12 @@ func (processor *RespCmdProcessor) ProcessCmd(line string) []ProcessCmdResult {
 	return result
 }
 
-func (processor *RespCmdProcessor) isCmdFromMaster() bool {
+func (processor *RespCmdProcessor) isCmdFromMaster(conn net.Conn) bool {
 	if processor.replication.IsMaster() {
 		return false
 	}
 
-	replicationAddress, err := replication.GetReplicationAddress(processor.connection)
+	replicationAddress, err := replication.GetReplicationAddress(conn)
 
 	if err != nil {
 		return false

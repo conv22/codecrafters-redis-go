@@ -3,6 +3,7 @@ package replication
 import (
 	"bufio"
 	"net"
+	"sync"
 )
 
 type ReplicaClient struct {
@@ -12,7 +13,7 @@ type ReplicaClient struct {
 	conn          net.Conn
 	Writer        *bufio.Writer
 	listeningPort string
-
+	Mu            sync.Mutex
 	// capa     string
 	// psync2   string
 }

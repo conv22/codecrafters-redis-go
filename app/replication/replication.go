@@ -3,6 +3,7 @@ package replication
 import (
 	"flag"
 	"net"
+	"sync"
 )
 
 type ReplicationInfo struct {
@@ -10,6 +11,7 @@ type ReplicationInfo struct {
 	Offset        string
 	MasterReplId  string
 	MasterAddress string
+	Mu            sync.Mutex
 	Replicas      map[string]*ReplicaClient
 }
 
@@ -33,12 +35,18 @@ func NewReplicationInfo() *ReplicationInfo {
 	}
 }
 
-func (replication ReplicationInfo) IsReplica() bool {
+func (replication *ReplicationInfo) IsReplica() bool {
 	return replication.Role == REPLICATION_SLAVE_ROLE
 }
 
-func (replication ReplicationInfo) IsMaster() bool {
+func (replication *ReplicationInfo) IsMaster() bool {
 	return replication.Role == REPLICATION_MASTER_ROLE
+}
+
+func (replication *ReplicationInfo) AppendClient(address string, client *ReplicaClient) {
+	replication.Mu.Lock()
+	replication.Replicas[address] = client
+	replication.Mu.Unlock()
 }
 
 func GetReplicationAddress(conn net.Conn) (string, error) {
@@ -51,7 +59,7 @@ func GetReplicationAddress(conn net.Conn) (string, error) {
 	return net.JoinHostPort(host, port), nil
 }
 
-func (replication ReplicationInfo) IsReplicaClient(conn net.Conn) bool {
+func (replication *ReplicationInfo) IsReplicaClient(conn net.Conn) bool {
 	connAddress, err := GetReplicationAddress(conn)
 
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"path"
-	"sync"
 
 	"github.com/codecrafters-io/redis-starter-go/app/cmds"
 	"github.com/codecrafters-io/redis-starter-go/app/config"
@@ -22,9 +21,10 @@ var cfg = config.NewConfig()
 var rdbReader = rdb.NewRdb()
 var inMemoryStorage = initStorage()
 var parser = resp.NewRespParser()
-var replicationInfo = replication.NewReplicationInfo()
+var cmdProcessor = cmds.NewRespCmdProcessor(parser, inMemoryStorage, cfg, replicationInfo)
 
-var replicationLock sync.Mutex
+var replicationInfo = replication.NewReplicationInfo()
+var replicationChannel = make(chan []byte)
 
 func initStorage() *storage.StorageCollection {
 	persistStorage, err := rdbReader.HandleRead(path.Join(cfg.DirFlag, cfg.DbFilenameFlag))
@@ -52,6 +52,8 @@ func main() {
 		}
 	}
 
+	go handleSyncWithReplicas()
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -65,7 +67,6 @@ func main() {
 func handleClient(conn net.Conn) {
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
-	cmdProcessor := cmds.NewRespCmdProcessor(parser, inMemoryStorage, cfg, replicationInfo, conn)
 
 	for {
 		bytesRead, err := conn.Read(buf)
@@ -78,9 +79,8 @@ func handleClient(conn net.Conn) {
 		}
 
 		bytesData := buf[:bytesRead]
-		line := string(bytesData)
 
-		processedResult := cmdProcessor.ProcessCmd(line)
+		processedResult := cmdProcessor.ProcessCmd(bytesData, conn)
 
 		for _, item := range processedResult {
 			if len(item.Answer) > 0 {
@@ -88,7 +88,7 @@ func handleClient(conn net.Conn) {
 			}
 
 			if item.IsDuplicate && replicationInfo.IsMaster() {
-				go handleSyncWithReplica(bytesData)
+				replicationChannel <- item.BytesInput
 			}
 		}
 
@@ -104,14 +104,21 @@ func handleClient(conn net.Conn) {
 
 }
 
-func handleSyncWithReplica(cmd []byte) {
-	replicationLock.Lock()
+func handleSyncWithReplicas() {
 
-	// TODO: send cmds only once replica is active
-	for _, replica := range replicationInfo.Replicas {
-		replica.Writer.Write(cmd)
-		replica.Writer.Flush()
+	for {
+		cmd := <-replicationChannel
+		replicationInfo.Mu.Lock()
+		fmt.Print(replicationInfo.Replicas)
+		// TODO: send cmds only once replica is active
+		for _, replica := range replicationInfo.Replicas {
+			replica.Mu.Lock()
+			replica.Writer.Write(cmd)
+			replica.Writer.Flush()
+			replica.Mu.Unlock()
+		}
+		replicationInfo.Mu.Unlock()
+
 	}
-	replicationLock.Unlock()
 
 }

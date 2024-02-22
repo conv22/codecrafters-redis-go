@@ -29,7 +29,7 @@ const (
 	KEEPTTL = "KEEPTTL"
 )
 
-func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) string {
+func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd, isCmdFromMaster bool) string {
 	if len(parsedResult) < 2 {
 		processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
 	}
@@ -58,7 +58,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd) stri
 
 	processor.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, ExpiryMs: expirationTime})
 
-	if processor.isCmdFromMaster() {
+	if isCmdFromMaster {
 		return ""
 	}
 
