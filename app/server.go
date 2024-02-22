@@ -45,11 +45,12 @@ func main() {
 	defer listener.Close()
 
 	if replicationInfo.IsReplica() {
-		err := handleHandshake()
+		masterConn, err := handleHandshake()
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
+		go handleClient(masterConn)
 	}
 
 	go handleSyncWithReplicas()
@@ -98,7 +99,7 @@ func handleClient(conn net.Conn) {
 
 	}
 
-	if !replicationInfo.IsReplicaClient(conn) {
+	if !replicationInfo.IsReplicaClient(conn) || replicationInfo.IsReplicaMaster(conn) {
 		conn.Close()
 	}
 

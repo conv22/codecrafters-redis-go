@@ -81,6 +81,20 @@ func (replication *ReplicationInfo) IsReplicaClient(conn net.Conn) bool {
 	return hasReplica
 }
 
+func (replication *ReplicationInfo) IsReplicaMaster(conn net.Conn) bool {
+	if replication.IsMaster() {
+		return false
+	}
+	connAddress, err := GetReplicationAddress(conn)
+
+	if err != nil {
+		return false
+	}
+
+	return replication.MasterAddress == connAddress
+
+}
+
 func getMasterAddress(replicaFlag string, flags []string) (masterAddress string) {
 	if len(flags) != 1 {
 		return replicaFlag

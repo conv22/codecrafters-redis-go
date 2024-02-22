@@ -10,55 +10,55 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
-func handleHandshake() error {
+func handleHandshake() (net.Conn, error) {
 	// Establish connection to the master
 	masterConn, err := connectToMaster()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Send PING command
 	if err := sendPingCommand(masterConn); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Verify PING response from master
 	if err := verifyPingResponse(masterConn); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Send listening port configuration
 	if err := sendListeningPortConfig(masterConn); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Verify OK response for listening port configuration
 	if err := verifyOKResponse(masterConn); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Send capability configuration
 	if err := sendCapabilityConfig(masterConn); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Verify OK response for capability configuration
 	if err := verifyOKResponse(masterConn); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Send psync
 
 	if err := sendPsyncCommand(masterConn); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Verify PSYNC response
 	if err := verifyPsyncResponse(masterConn); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return masterConn, err
 }
 
 func connectToMaster() (net.Conn, error) {
