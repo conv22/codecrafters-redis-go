@@ -25,7 +25,9 @@ func (collection *StorageCollection) SetAuxField(key string, value interface{}) 
 }
 
 func (collection *StorageCollection) SetStorageById(id StorageId, storage *Storage) {
+	storage.mu.Lock()
 	collection.Storages[id] = storage
+	storage.mu.Unlock()
 }
 
 func (collection *StorageCollection) GetCurrentStorage() *Storage {

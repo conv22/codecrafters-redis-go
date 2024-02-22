@@ -24,8 +24,7 @@ func (processor *RespCmdProcessor) handlePsync(parsedResult []resp.ParsedCmd, co
 
 	offset, replicationId := parsedResult[0], parsedResult[1]
 	replica := processor.replication.Replicas[replicationAddress]
-	replica.ReplicationId = replicationId.Value
-	replica.Offset = offset.Value
+	replica.SetOffsetAndReplicationId(offset.Value, replicationId.Value)
 
 	builder := strings.Builder{}
 	builder.WriteString(CMD_FULL_RESYNC)

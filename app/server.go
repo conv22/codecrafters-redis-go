@@ -50,10 +50,10 @@ func main() {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
-		go handleClient(masterConn)
+		go handleConnection(masterConn, true)
+	} else {
+		go handleSyncWithReplicas()
 	}
-
-	go handleSyncWithReplicas()
 
 	for {
 		conn, err := listener.Accept()
@@ -61,13 +61,19 @@ func main() {
 			fmt.Println("Error:", err)
 			continue
 		}
-		go handleClient(conn)
+		go handleConnection(conn, false)
 	}
 }
 
-func handleClient(conn net.Conn) {
+func handleConnection(conn net.Conn, isPersistentConn bool) {
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
+
+	defer func() {
+		if !isPersistentConn && !replicationInfo.IsReplicaClient(conn) {
+			conn.Close()
+		}
+	}()
 
 	for {
 		bytesRead, err := conn.Read(buf)
@@ -97,10 +103,6 @@ func handleClient(conn net.Conn) {
 			break
 		}
 
-	}
-
-	if !replicationInfo.IsReplicaClient(conn) || replicationInfo.IsReplicaMaster(conn) {
-		conn.Close()
 	}
 
 }

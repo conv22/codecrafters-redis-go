@@ -19,8 +19,27 @@ func (processor *RespCmdProcessor) handleReplConf(parsedResult []resp.ParsedCmd,
 		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "Invalid connection address")
 	}
 
-	// assume that this is the first handshake repl cmd
-	if parsedResult[0].Value == "listening-port" {
+	firstCmd := parsedResult[0].Value
+
+	switch firstCmd {
+	case CMD_GETACK:
+		return processor.parser.HandleEncodeSliceList([]resp.SliceEncoding{
+			{
+				S:        CMD_REPLCONF,
+				Encoding: RespEncodingConstants.BULK_STRING,
+			},
+			{
+				S:        CMD_ACK,
+				Encoding: RespEncodingConstants.BULK_STRING,
+			},
+			{
+				S:        "0",
+				Encoding: RespEncodingConstants.BULK_STRING,
+			},
+		})
+
+		// assume that this is the first handshake repl cmd
+	case "listening-port":
 		client, isClientExist := processor.replication.Replicas[replicationAddress]
 		if !isClientExist {
 			client = replication.NewReplicaClient(parsedResult[1].Value)
@@ -29,18 +48,14 @@ func (processor *RespCmdProcessor) handleReplConf(parsedResult []resp.ParsedCmd,
 
 		processor.replication.AppendClient(replicationAddress, client)
 		return processor.parser.HandleEncode(RespEncodingConstants.STRING, CMD_OK)
+
+	default:
+		_, ok := processor.replication.Replicas[replicationAddress]
+
+		if !ok {
+			return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "Invalid handshake")
+		}
+		return processor.parser.HandleEncode(RespEncodingConstants.STRING, CMD_OK)
 	}
 
-	replica, ok := processor.replication.Replicas[replicationAddress]
-
-	if !ok {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "Invalid handshake")
-	}
-
-	// assume that this is the second handshake repl cmd, ignore for now as the values are hardcoded
-
-	// handshake complete
-	replica.IsActive = true
-
-	return processor.parser.HandleEncode(RespEncodingConstants.STRING, CMD_OK)
 }

@@ -6,14 +6,11 @@ import (
 )
 
 type ReplicaClient struct {
-	IsActive      bool
 	ReplicationId string
 	Offset        string
 	connections   []net.Conn
 	listeningPort string
-	Mu            sync.Mutex
-	// capa     string
-	// psync2   string
+	mu            sync.Mutex
 }
 
 func NewReplicaClient(listeningPort string) *ReplicaClient {
@@ -23,8 +20,15 @@ func NewReplicaClient(listeningPort string) *ReplicaClient {
 	}
 }
 
+func (client *ReplicaClient) SetOffsetAndReplicationId(offset, replicationId string) {
+	client.mu.Lock()
+	client.Offset = offset
+	client.ReplicationId = replicationId
+	client.mu.Unlock()
+}
+
 func (client *ReplicaClient) AppendConnection(conn net.Conn) {
-	client.Mu.Lock()
-	defer client.Mu.Unlock()
+	client.mu.Lock()
+	defer client.mu.Unlock()
 	client.connections = append(client.connections, conn)
 }

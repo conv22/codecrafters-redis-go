@@ -41,6 +41,8 @@ const (
 	CMD_PSYNC       string = "PSYNC"
 	CMD_OK          string = "OK"
 	CMD_FULL_RESYNC string = "FULLRESYNC"
+	CMD_ACK         string = "ACK"
+	CMD_GETACK      string = "GETACK"
 )
 
 type ProcessCmdResult struct {

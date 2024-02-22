@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
@@ -16,6 +17,7 @@ func (processor *RespCmdProcessor) handleGet(parsedResult []resp.ParsedCmd) stri
 		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}
 	strValue, ok := value.Value.(string)
+	fmt.Print(strValue)
 	if !ok {
 		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
 	}

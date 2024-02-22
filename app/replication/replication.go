@@ -11,21 +11,19 @@ type ReplicationInfo struct {
 	Offset        string
 	MasterReplId  string
 	MasterAddress string
-	Mu            sync.Mutex
+	mu            sync.Mutex
 	Replicas      map[string]*ReplicaClient
 }
 
-var replica = flag.String("replicaof", "", "The address for Master instance")
+var replicaFlag = flag.String("replicaof", "", "The address for Master instance")
 
 func NewReplicationInfo() *ReplicationInfo {
 	flag.Parse()
-	// Todo: handle flags differently
-	flagArgs := flag.Args()
-	masterAddress := getMasterAddress(*replica, flagArgs)
-	role := REPLICATION_MASTER_ROLE
-	if *replica != "" {
-		role = REPLICATION_SLAVE_ROLE
-	}
+
+	role := determineRole()
+
+	masterAddress := determineMasterAddress()
+
 	return &ReplicationInfo{
 		Role:          role,
 		MasterAddress: masterAddress,
@@ -33,6 +31,21 @@ func NewReplicationInfo() *ReplicationInfo {
 		Offset:        "0",
 		Replicas:      make(map[string]*ReplicaClient),
 	}
+}
+
+func determineRole() string {
+	if *replicaFlag != "" {
+		return REPLICATION_SLAVE_ROLE
+	}
+	return REPLICATION_MASTER_ROLE
+}
+
+func determineMasterAddress() string {
+	flagArgs := flag.Args()
+	if len(flagArgs) == 1 {
+		return net.JoinHostPort(*replicaFlag, flagArgs[0])
+	}
+	return *replicaFlag
 }
 
 func (replication *ReplicationInfo) IsReplica() bool {
@@ -44,9 +57,9 @@ func (replication *ReplicationInfo) IsMaster() bool {
 }
 
 func (replication *ReplicationInfo) AppendClient(address string, client *ReplicaClient) {
-	replication.Mu.Lock()
+	replication.mu.Lock()
 	replication.Replicas[address] = client
-	replication.Mu.Unlock()
+	replication.mu.Unlock()
 }
 
 func GetReplicationAddress(conn net.Conn) (string, error) {
@@ -60,8 +73,8 @@ func GetReplicationAddress(conn net.Conn) (string, error) {
 }
 
 func (replication *ReplicationInfo) PopulateCmdToReplicas(data []byte) {
-	replication.Mu.Lock()
-	defer replication.Mu.Unlock()
+	replication.mu.Lock()
+	defer replication.mu.Unlock()
 	for _, replica := range replication.Replicas {
 		for _, conn := range replica.connections {
 			conn.Write(data)
@@ -79,26 +92,4 @@ func (replication *ReplicationInfo) IsReplicaClient(conn net.Conn) bool {
 	_, hasReplica := replication.Replicas[connAddress]
 
 	return hasReplica
-}
-
-func (replication *ReplicationInfo) IsReplicaMaster(conn net.Conn) bool {
-	if replication.IsMaster() {
-		return false
-	}
-	connAddress, err := GetReplicationAddress(conn)
-
-	if err != nil {
-		return false
-	}
-
-	return replication.MasterAddress == connAddress
-
-}
-
-func getMasterAddress(replicaFlag string, flags []string) (masterAddress string) {
-	if len(flags) != 1 {
-		return replicaFlag
-	}
-
-	return net.JoinHostPort(replicaFlag, flags[0])
 }
