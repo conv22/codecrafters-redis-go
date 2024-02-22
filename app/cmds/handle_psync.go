@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"net"
 	"strings"
-	"sync"
 
 	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
@@ -24,12 +23,9 @@ func (processor *RespCmdProcessor) handlePsync(parsedResult []resp.ParsedCmd, co
 	}
 
 	offset, replicationId := parsedResult[0], parsedResult[1]
-	var replicationLock sync.Mutex
 	replica := processor.replication.Replicas[replicationAddress]
-	replicationLock.Lock()
 	replica.ReplicationId = replicationId.Value
 	replica.Offset = offset.Value
-	replicationLock.Unlock()
 
 	builder := strings.Builder{}
 	builder.WriteString(CMD_FULL_RESYNC)

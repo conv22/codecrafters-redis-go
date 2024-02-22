@@ -105,20 +105,8 @@ func handleClient(conn net.Conn) {
 }
 
 func handleSyncWithReplicas() {
-
 	for {
-		cmd := <-replicationChannel
-		replicationInfo.Mu.Lock()
-		fmt.Print(replicationInfo.Replicas)
-		// TODO: send cmds only once replica is active
-		for _, replica := range replicationInfo.Replicas {
-			replica.Mu.Lock()
-			replica.Writer.Write(cmd)
-			replica.Writer.Flush()
-			replica.Mu.Unlock()
-		}
-		replicationInfo.Mu.Unlock()
-
+		cmds := <-replicationChannel
+		replicationInfo.PopulateCmdToReplicas(cmds)
 	}
-
 }

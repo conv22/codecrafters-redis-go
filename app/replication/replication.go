@@ -59,6 +59,16 @@ func GetReplicationAddress(conn net.Conn) (string, error) {
 	return net.JoinHostPort(host, port), nil
 }
 
+func (replication *ReplicationInfo) PopulateCmdToReplicas(data []byte) {
+	replication.Mu.Lock()
+	defer replication.Mu.Unlock()
+	for _, replica := range replication.Replicas {
+		for _, conn := range replica.connections {
+			conn.Write(data)
+		}
+	}
+}
+
 func (replication *ReplicationInfo) IsReplicaClient(conn net.Conn) bool {
 	connAddress, err := GetReplicationAddress(conn)
 
