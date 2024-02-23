@@ -91,7 +91,7 @@ func sendListeningPortConfig(conn net.Conn) error {
 	listeningPortConfig := []resp.SliceEncoding{
 		{S: cmds.CMD_REPLCONF, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 		{S: "listening-port", Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
-		{S: cfg.Port, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
+		{S: serverContext.cfg.Port, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 	}
 
 	if err := sendCommand(writer, listeningPortConfig); err != nil {
@@ -101,7 +101,7 @@ func sendListeningPortConfig(conn net.Conn) error {
 }
 
 func verifyPingResponse(conn net.Conn) error {
-	pingAnswer := []byte(parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_PONG))
+	pingAnswer := []byte(serverContext.parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_PONG))
 	response, err := getResponse(conn, len(pingAnswer))
 
 	if err != nil || !bytes.Equal(pingAnswer, response) {
@@ -111,7 +111,7 @@ func verifyPingResponse(conn net.Conn) error {
 }
 
 func verifyOKResponse(conn net.Conn) error {
-	okAnswer := []byte(parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_OK))
+	okAnswer := []byte(serverContext.parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_OK))
 	response, err := getResponse(conn, len(okAnswer))
 
 	if err != nil || !bytes.Equal(okAnswer, response) {
@@ -121,11 +121,22 @@ func verifyOKResponse(conn net.Conn) error {
 }
 
 func verifyPsyncResponse(conn net.Conn) error {
+	// full resync
 	_, err := getResponse(conn, 1024)
 
 	if err != nil {
 		return errors.New(cmds.CMD_PSYNC + err.Error())
 	}
+
+	// // rdb file
+	// rdbFileBytes, err := getResponse(conn, 1024)
+
+	// if err != nil {
+	// 	collection, err := serverContext.rdbReader.HandleReadFromBytes(rdbFileBytes)
+	// 	if err != nil {
+	// 		serverContext.inMemoryStorage = collection
+	// 	}
+	// }
 
 	return err
 }
@@ -139,7 +150,7 @@ func getResponse(conn net.Conn, bufLength int) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf[0:bytesToRead], nil
+	return buf[:bytesToRead], nil
 }
 
 func sendCapabilityConfig(conn net.Conn) error {
@@ -159,6 +170,6 @@ func sendCapabilityConfig(conn net.Conn) error {
 }
 
 func sendCommand(writer *bufio.Writer, command []resp.SliceEncoding) error {
-	_, err := writer.Write([]byte(parser.HandleEncodeSliceList(command)))
+	_, err := writer.Write([]byte(serverContext.parser.HandleEncodeSliceList(command)))
 	return err
 }
