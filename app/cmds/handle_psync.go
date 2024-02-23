@@ -18,12 +18,17 @@ func (processor *RespCmdProcessor) handlePsync(parsedResult []resp.ParsedCmd, co
 
 	replicationAddress, err := replication.GetReplicationAddress(conn)
 
-	if err != nil || processor.replication.Replicas[replicationAddress] == nil {
+	if err != nil {
+		return []string{processor.parser.HandleEncode(RespEncodingConstants.ERROR, "Invalid connection address")}
+	}
+
+	replica, ok := processor.replication.GetReplicaClientByAddress(replicationAddress)
+
+	if !ok {
 		return []string{processor.parser.HandleEncode(RespEncodingConstants.ERROR, "Invalid connection address")}
 	}
 
 	offset, replicationId := parsedResult[0], parsedResult[1]
-	replica := processor.replication.Replicas[replicationAddress]
 	replica.SetOffsetAndReplicationId(offset.Value, replicationId.Value)
 
 	builder := strings.Builder{}

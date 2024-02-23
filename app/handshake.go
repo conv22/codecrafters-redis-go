@@ -10,63 +10,49 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
-func handleHandshake() (net.Conn, error) {
-	// Establish connection to the master
-	masterConn, err := connectToMaster()
-	if err != nil {
-		return nil, err
-	}
-
+func handleHandshake(masterConn net.Conn) error {
 	// Send PING command
 	if err := sendPingCommand(masterConn); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Verify PING response from master
 	if err := verifyPingResponse(masterConn); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Send listening port configuration
 	if err := sendListeningPortConfig(masterConn); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Verify OK response for listening port configuration
 	if err := verifyOKResponse(masterConn); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Send capability configuration
 	if err := sendCapabilityConfig(masterConn); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Verify OK response for capability configuration
 	if err := verifyOKResponse(masterConn); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Send psync
 
 	if err := sendPsyncCommand(masterConn); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Verify PSYNC response
 	if err := verifyPsyncResponse(masterConn); err != nil {
-		return nil, err
+		return err
 	}
 
-	return masterConn, err
-}
-
-func connectToMaster() (net.Conn, error) {
-	masterConn, err := net.Dial("tcp", replicationInfo.MasterAddress)
-	if err != nil {
-		return nil, errors.New("failed to connect to master: " + replicationInfo.MasterAddress)
-	}
-	return masterConn, nil
+	return nil
 }
 
 func sendPingCommand(conn net.Conn) error {
@@ -92,8 +78,9 @@ func sendPsyncCommand(conn net.Conn) error {
 	}
 
 	if err := sendCommand(writer, psyncCommand); err != nil {
-		return errors.New("failed to send PSYNC command: " + err.Error())
+		return err
 	}
+
 	return nil
 }
 
@@ -139,7 +126,8 @@ func verifyPsyncResponse(conn net.Conn) error {
 	if err != nil {
 		return errors.New(cmds.CMD_PSYNC + err.Error())
 	}
-	return nil
+
+	return err
 }
 
 func getResponse(conn net.Conn, bufLength int) ([]byte, error) {
@@ -148,7 +136,7 @@ func getResponse(conn net.Conn, bufLength int) ([]byte, error) {
 	bytesToRead, err := conn.Read(buf)
 
 	if err != nil {
-		return nil, errors.New("expected OK response not received")
+		return nil, err
 	}
 
 	return buf[0:bytesToRead], nil

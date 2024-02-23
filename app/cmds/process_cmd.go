@@ -16,10 +16,10 @@ type RespCmdProcessor struct {
 	parser      *resp.RespParser
 	storage     *storage.StorageCollection
 	config      *config.Config
-	replication *replication.ReplicationInfo
+	replication *replication.ReplicationStore
 }
 
-func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationInfo) *RespCmdProcessor {
+func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationStore) *RespCmdProcessor {
 	return &RespCmdProcessor{
 		parser:      p,
 		storage:     storage,

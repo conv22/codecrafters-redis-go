@@ -21,9 +21,9 @@ var cfg = config.NewConfig()
 var rdbReader = rdb.NewRdb()
 var inMemoryStorage = initStorage()
 var parser = resp.NewRespParser()
-var cmdProcessor = cmds.NewRespCmdProcessor(parser, inMemoryStorage, cfg, replicationInfo)
+var cmdProcessor = cmds.NewRespCmdProcessor(parser, inMemoryStorage, cfg, replicationStore)
 
-var replicationInfo = replication.NewReplicationInfo()
+var replicationStore = replication.NewReplicationStore()
 var replicationChannel chan []byte
 
 func initStorage() *storage.StorageCollection {
@@ -36,6 +36,14 @@ func initStorage() *storage.StorageCollection {
 	return persistStorage
 }
 
+func connectToMaster() (net.Conn, error) {
+	masterConn, err := net.Dial("tcp", replicationStore.MasterAddress)
+	if err != nil {
+		return nil, errors.New("failed to connect to master: " + replicationStore.MasterAddress)
+	}
+	return masterConn, nil
+}
+
 func main() {
 	listener, err := net.Listen("tcp", "0.0.0.0:"+cfg.Port)
 	if err != nil {
@@ -44,12 +52,13 @@ func main() {
 	}
 	defer listener.Close()
 
-	if replicationInfo.IsReplica() {
-		masterConn, err := handleHandshake()
+	if replicationStore.IsReplica() {
+		masterConn, err := connectToMaster()
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
+		handleHandshake(masterConn)
 		go handleConnection(masterConn, true)
 	} else {
 		replicationChannel = make(chan []byte)
@@ -71,7 +80,7 @@ func handleConnection(conn net.Conn, isPersistentConn bool) {
 	buf := make([]byte, 1024)
 
 	defer func() {
-		if !isPersistentConn && !replicationInfo.IsReplicaClient(conn) {
+		if !isPersistentConn && !replicationStore.IsReplicaClient(conn) {
 			conn.Close()
 		}
 	}()
@@ -82,7 +91,6 @@ func handleConnection(conn net.Conn, isPersistentConn bool) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			fmt.Println("Error reading from connection:", err)
 			break
 		}
 
@@ -95,7 +103,7 @@ func handleConnection(conn net.Conn, isPersistentConn bool) {
 				writer.Write([]byte(item.Answer))
 			}
 
-			if replicationInfo.IsMaster() && item.IsDuplicate {
+			if replicationChannel != nil && item.IsDuplicate {
 				fmt.Printf("%s bytes input", item.BytesInput)
 				replicationChannel <- item.BytesInput
 			}
@@ -111,7 +119,6 @@ func handleConnection(conn net.Conn, isPersistentConn bool) {
 
 func handleSyncWithReplicas() {
 	for {
-		cmds := <-replicationChannel
-		replicationInfo.PopulateCmdToReplicas(cmds)
+		replicationStore.PopulateCmdToReplicas(<-replicationChannel)
 	}
 }

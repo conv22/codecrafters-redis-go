@@ -10,7 +10,7 @@ type ReplicaClient struct {
 	Offset        string
 	connections   []net.Conn
 	listeningPort string
-	mu            sync.Mutex
+	mu            sync.RWMutex
 }
 
 func NewReplicaClient(listeningPort string) *ReplicaClient {
