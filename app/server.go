@@ -24,7 +24,7 @@ var parser = resp.NewRespParser()
 var cmdProcessor = cmds.NewRespCmdProcessor(parser, inMemoryStorage, cfg, replicationInfo)
 
 var replicationInfo = replication.NewReplicationInfo()
-var replicationChannel = make(chan []byte)
+var replicationChannel chan []byte
 
 func initStorage() *storage.StorageCollection {
 	persistStorage, err := rdbReader.HandleRead(path.Join(cfg.DirFlag, cfg.DbFilenameFlag))
@@ -52,6 +52,7 @@ func main() {
 		}
 		go handleConnection(masterConn, true)
 	} else {
+		replicationChannel = make(chan []byte)
 		go handleSyncWithReplicas()
 	}
 
@@ -94,7 +95,8 @@ func handleConnection(conn net.Conn, isPersistentConn bool) {
 				writer.Write([]byte(item.Answer))
 			}
 
-			if item.IsDuplicate && replicationInfo.IsMaster() {
+			if replicationInfo.IsMaster() && item.IsDuplicate {
+				fmt.Printf("%s bytes input", item.BytesInput)
 				replicationChannel <- item.BytesInput
 			}
 		}
