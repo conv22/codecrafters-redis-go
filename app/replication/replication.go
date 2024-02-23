@@ -6,6 +6,13 @@ import (
 	"sync"
 )
 
+const (
+	REPLICATION_MASTER_ROLE = "master"
+	REPLICATION_SLAVE_ROLE  = "slave"
+)
+
+var replicaFlag = flag.String("replicaof", "", "The address for Master instance")
+
 type ReplicationStore struct {
 	Role          string
 	Offset        string
@@ -14,8 +21,6 @@ type ReplicationStore struct {
 	mu            sync.RWMutex
 	replicasMap   map[string]*ReplicaClient
 }
-
-var replicaFlag = flag.String("replicaof", "", "The address for Master instance")
 
 func NewReplicationStore() *ReplicationStore {
 	flag.Parse()
@@ -58,8 +63,8 @@ func (r *ReplicationStore) IsMaster() bool {
 
 func (r *ReplicationStore) AppendClient(address string, client *ReplicaClient) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.replicasMap[address] = client
-	r.mu.Unlock()
 }
 
 func (r *ReplicationStore) PopulateCmdToReplicas(cmd []byte) {

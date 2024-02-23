@@ -3,15 +3,15 @@ package storage
 import "sync"
 
 type StorageCollection struct {
-	CurrStorageId StorageId
-	Storages      map[StorageId]*Storage
+	CurrStorageId storageId
+	Storages      map[storageId]*Storage
 	AuxFields     map[string]interface{}
 	mu            sync.RWMutex
 }
 
 func NewStorageCollection() *StorageCollection {
 	return &StorageCollection{
-		Storages:  make(map[StorageId]*Storage),
+		Storages:  make(map[storageId]*Storage),
 		AuxFields: make(map[string]interface{}),
 	}
 
@@ -24,10 +24,10 @@ func (collection *StorageCollection) SetAuxField(key string, value interface{}) 
 	return nil
 }
 
-func (collection *StorageCollection) SetStorageById(id StorageId, storage *Storage) {
+func (collection *StorageCollection) SetStorageById(id storageId, storage *Storage) {
 	storage.mu.Lock()
+	defer storage.mu.Unlock()
 	collection.Storages[id] = storage
-	storage.mu.Unlock()
 }
 
 func (collection *StorageCollection) GetCurrentStorage() *Storage {
@@ -42,7 +42,7 @@ func (collection *StorageCollection) GetCurrentStorage() *Storage {
 	return storage
 }
 
-func (collection *StorageCollection) SetItemToCurrentStorage(key StorageKey, item *StorageItem) error {
+func (collection *StorageCollection) SetItemToCurrentStorage(key storageKey, item *StorageItem) error {
 	storage := collection.GetCurrentStorage()
 
 	err := storage.Set(key, item)
@@ -53,7 +53,7 @@ func (collection *StorageCollection) SetItemToCurrentStorage(key StorageKey, ite
 	return nil
 }
 
-func (collection *StorageCollection) GetItemFromCurrentStorage(key StorageKey) (*StorageItem, bool) {
+func (collection *StorageCollection) GetItemFromCurrentStorage(key storageKey) (*StorageItem, bool) {
 	storage := collection.GetCurrentStorage()
 
 	item, ok := storage.Get(key)

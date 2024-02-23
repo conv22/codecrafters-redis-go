@@ -22,9 +22,9 @@ func NewReplicaClient(listeningPort string) *ReplicaClient {
 
 func (client *ReplicaClient) SetOffsetAndReplicationId(offset, replicationId string) {
 	client.mu.Lock()
+	defer client.mu.Unlock()
 	client.Offset = offset
 	client.ReplicationId = replicationId
-	client.mu.Unlock()
 }
 
 func (client *ReplicaClient) AppendConnection(conn net.Conn) {

@@ -29,20 +29,20 @@ func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection,
 }
 
 const (
-	CMD_PING        string = "PING"
-	CMD_PONG        string = "PONG"
-	CMD_ECHO        string = "ECHO"
-	CMD_GET         string = "GET"
-	CMD_SET         string = "SET"
-	CMD_CONFIG      string = "CONFIG"
-	CMD_KEYS        string = "KEYS"
-	CMD_INFO        string = "INFO"
-	CMD_REPLCONF    string = "REPLCONF"
-	CMD_PSYNC       string = "PSYNC"
-	CMD_OK          string = "OK"
-	CMD_FULL_RESYNC string = "FULLRESYNC"
-	CMD_ACK         string = "ACK"
-	CMD_GETACK      string = "GETACK"
+	CMD_PING        = "PING"
+	CMD_PONG        = "PONG"
+	CMD_ECHO        = "ECHO"
+	CMD_GET         = "GET"
+	CMD_SET         = "SET"
+	CMD_CONFIG      = "CONFIG"
+	CMD_KEYS        = "KEYS"
+	CMD_INFO        = "INFO"
+	CMD_REPLCONF    = "REPLCONF"
+	CMD_PSYNC       = "PSYNC"
+	CMD_OK          = "OK"
+	CMD_FULL_RESYNC = "FULLRESYNC"
+	CMD_ACK         = "ACK"
+	CMD_GETACK      = "GETACK"
 )
 
 type ProcessCmdResult struct {
@@ -96,10 +96,8 @@ func (processor *RespCmdProcessor) ProcessCmd(data []byte, conn net.Conn) []Proc
 			result = append(result, ProcessCmdResult{Answer: processor.handleKeys(cmds)})
 		case CMD_INFO:
 			result = append(result, ProcessCmdResult{Answer: processor.handleInfo(cmds)})
-
 		case CMD_REPLCONF:
 			result = append(result, ProcessCmdResult{Answer: processor.handleReplConf(cmds, conn)})
-
 		case CMD_PSYNC:
 			answerSlice := processor.handlePsync(cmds, conn)
 

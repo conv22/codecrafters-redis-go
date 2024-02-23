@@ -14,8 +14,7 @@ func encodeData(encoding string, s string) string {
 }
 
 type SliceEncoding struct {
-	S        string
-	Encoding string
+	S, Encoding string
 }
 
 func (parser RespParser) HandleEncodeSliceList(slices []SliceEncoding) string {

@@ -2,6 +2,7 @@ package rdb
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -22,7 +23,15 @@ func NewRdb() *Rdb {
 	}
 }
 
-func (rdb *Rdb) HandleRead(path string) (*storage.StorageCollection, error) {
+func (rdb *Rdb) HandleReadFromBytes(data []byte) (*storage.StorageCollection, error) {
+	reader := bytes.NewReader(data)
+
+	rdb.reader = bufio.NewReader(reader)
+
+	return rdb.handleRead()
+}
+
+func (rdb *Rdb) HandleReadFromFile(path string) (*storage.StorageCollection, error) {
 	file, err := os.Open(path)
 
 	if err != nil {
@@ -33,7 +42,11 @@ func (rdb *Rdb) HandleRead(path string) (*storage.StorageCollection, error) {
 
 	rdb.reader = bufio.NewReader(file)
 
-	err = rdb.parseStart()
+	return rdb.handleRead()
+}
+
+func (rdb *Rdb) handleRead() (*storage.StorageCollection, error) {
+	err := rdb.parseStart()
 	if err != nil {
 		return nil, err
 	}

@@ -4,9 +4,9 @@ import (
 	"sync"
 )
 
-type StorageKey = string
+type storageKey = string
 
-type StorageId = uint8
+type storageId = uint8
 
 type StorageItem struct {
 	Value    any
@@ -17,17 +17,17 @@ type StorageItem struct {
 type Storage struct {
 	HashSize       int
 	ExpireHashSize int
-	CacheMap       map[StorageKey]*StorageItem
+	CacheMap       map[storageKey]*StorageItem
 	mu             sync.RWMutex
 }
 
 func NewStorage() *Storage {
 	return &Storage{
-		CacheMap: make(map[StorageKey]*StorageItem),
+		CacheMap: make(map[storageKey]*StorageItem),
 	}
 }
 
-func (ims *Storage) Get(key StorageKey) (*StorageItem, bool) {
+func (ims *Storage) Get(key storageKey) (*StorageItem, bool) {
 	ims.mu.RLock()
 	defer ims.mu.RUnlock()
 	value, ok := ims.CacheMap[key]
@@ -44,14 +44,14 @@ func (ims *Storage) GetKeys() []string {
 	return keys
 }
 
-func (ims *Storage) Set(key StorageKey, value *StorageItem) error {
+func (ims *Storage) Set(key storageKey, value *StorageItem) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
 	ims.CacheMap[key] = value
 	return nil
 }
 
-func (ims *Storage) Delete(key StorageKey) error {
+func (ims *Storage) Delete(key storageKey) error {
 	ims.mu.Lock()
 	defer ims.mu.Unlock()
 	delete(ims.CacheMap, key)

@@ -2,20 +2,10 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 )
-
-func connectToMaster() (net.Conn, error) {
-	masterConn, err := net.Dial("tcp", serverContext.replicationStore.MasterAddress)
-	if err != nil {
-		return nil, errors.New("failed to connect to master: " + serverContext.replicationStore.MasterAddress)
-	}
-	return masterConn, nil
-}
 
 func main() {
 	listener, err := net.Listen("tcp", "0.0.0.0:"+serverContext.cfg.Port)
@@ -28,7 +18,7 @@ func main() {
 	var replicationChannel chan []byte
 
 	if serverContext.replicationStore.IsReplica() {
-		masterConn, err := connectToMaster()
+		masterConn, err := net.Dial("tcp", serverContext.replicationStore.MasterAddress)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
@@ -62,9 +52,6 @@ func handleConnection(conn net.Conn, isPersistentConn bool, replicationChannel c
 	for {
 		bytesRead, err := conn.Read(buf)
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
 			break
 		}
 
@@ -82,9 +69,7 @@ func handleConnection(conn net.Conn, isPersistentConn bool, replicationChannel c
 			}
 		}
 
-		if err := writer.Flush(); err != nil {
-			break
-		}
+		writer.Flush()
 
 	}
 
