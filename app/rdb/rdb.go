@@ -83,8 +83,7 @@ out:
 
 			rdb.collection.SetAuxField(key, value)
 			continue out
-		case RDB_OPCODE_EXPIRE_TIME:
-		case RDB_OPCODE_EXPIRE_TIME_MS:
+		case RDB_OPCODE_EXPIRE_TIME, RDB_OPCODE_EXPIRE_TIME_MS:
 			var time int64
 			var err error
 

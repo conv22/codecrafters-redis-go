@@ -64,9 +64,9 @@ func parseValue(s string, result *[][]ParsedCmd, currArrLength, currIndex *int) 
 		return nextStr, err
 	case RESP_ENCODING_CONSTANTS.BULK_STRING:
 		nextStr, value, err = parseLengthData(str)
-	case RESP_ENCODING_CONSTANTS.ERROR:
-	case RESP_ENCODING_CONSTANTS.STRING:
-	case RESP_ENCODING_CONSTANTS.INTEGER:
+	case RESP_ENCODING_CONSTANTS.ERROR,
+		RESP_ENCODING_CONSTANTS.STRING,
+		RESP_ENCODING_CONSTANTS.INTEGER:
 		nextStr, value, err = parseData(str)
 	default:
 		return "", errors.New("invalid input")

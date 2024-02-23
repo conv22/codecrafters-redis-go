@@ -79,8 +79,7 @@ func getOptions(parsedResult []resp.ParsedCmd) setKeyOptions {
 			options.NX = true
 		case KEEPTTL:
 			options.KEEPTTL = true
-		case EX:
-		case PX:
+		case EX, PX:
 			if i < len(parsedResult)-1 {
 				value, err := strconv.Atoi(parsedResult[i+1].Value)
 				if err == nil {
@@ -93,8 +92,7 @@ func getOptions(parsedResult []resp.ParsedCmd) setKeyOptions {
 					i++
 				}
 			}
-		case EXAT:
-		case PXAT:
+		case EXAT, PXAT:
 			if i < len(parsedResult)-1 {
 				value, err := strconv.ParseInt(parsedResult[i+1].Value, 10, 64)
 				if err == nil {
