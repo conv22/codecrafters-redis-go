@@ -11,19 +11,16 @@ import (
 
 type ServerContext struct {
 	cfg              *config.Config
-	rdbReader        *rdb.Rdb
 	inMemoryStorage  *storage.StorageCollection
 	replicationStore *replication.ReplicationStore
 }
 
 func NewServerContext() *ServerContext {
 	cfg := config.NewConfig()
-	rdbReader := rdb.NewRdb()
-	inMemoryStorage := initStorage(rdbReader, cfg)
+	inMemoryStorage := initStorage(rdb.NewRdb(), cfg)
 	replicationStore := replication.NewReplicationStore()
 	return &ServerContext{
 		cfg:              cfg,
-		rdbReader:        rdbReader,
 		inMemoryStorage:  inMemoryStorage,
 		replicationStore: replicationStore,
 	}
