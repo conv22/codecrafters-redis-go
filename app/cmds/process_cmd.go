@@ -41,7 +41,7 @@ func (processor *RespCmdProcessor) ProcessCmd(parsedData [][]resp.ParsedCmd, con
 	result := []ProcessCmdResult{}
 
 	if len(parsedData) == 0 {
-		return []ProcessCmdResult{{Answer: resp.HandleEncode(respEncodingConstants.ERROR, "not enough arguments")}}
+		return []ProcessCmdResult{{Answer: resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "not enough arguments")}}
 	}
 
 	for _, parsedLine := range parsedData {

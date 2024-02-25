@@ -13,5 +13,5 @@ func (h *EchoHandler) minArgs() int {
 }
 
 func (h *EchoHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
-	return []string{resp.HandleEncode(respEncodingConstants.STRING, parsedResult[0].Value)}
+	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, parsedResult[0].Value)}
 }

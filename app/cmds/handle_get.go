@@ -25,19 +25,19 @@ func (h *GetHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	key := parsedResult[0].Value
 	value, ok := h.storage.GetCurrentStorage().Get(key)
 	if !ok {
-		return []string{resp.HandleEncode(respEncodingConstants.NULL_BULK_STRING, "")}
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.NULL_BULK_STRING, "")}
 	}
 	strValue, ok := value.Value.(string)
 	if !ok {
-		return []string{resp.HandleEncode(respEncodingConstants.NULL_BULK_STRING, "")}
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.NULL_BULK_STRING, "")}
 	}
 
 	if calculateIsExpired(value.ExpiryMs) {
 		h.storage.GetCurrentStorage().Delete(key)
-		return []string{resp.HandleEncode(respEncodingConstants.NULL_BULK_STRING, "")}
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.NULL_BULK_STRING, "")}
 	}
 
-	return []string{resp.HandleEncode(respEncodingConstants.STRING, strValue)}
+	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, strValue)}
 
 }
 

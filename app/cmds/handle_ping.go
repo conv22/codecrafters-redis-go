@@ -9,7 +9,7 @@ func newPingHandler() *PingHandler {
 }
 
 func (p *PingHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
-	return []string{resp.HandleEncode(respEncodingConstants.STRING, CMD_RESPONSE_PONG)}
+	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, CMD_RESPONSE_PONG)}
 }
 
 func (h *PingHandler) minArgs() int {

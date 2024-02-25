@@ -64,12 +64,12 @@ func (h *SetHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	expirationTime = calculateExpirationTime(options)
 
 	if lockWrite {
-		return []string{resp.HandleEncode(respEncodingConstants.NULL_BULK_STRING, "")}
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.NULL_BULK_STRING, "")}
 	}
 
 	h.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, ExpiryMs: expirationTime})
 
-	return []string{resp.HandleEncode(respEncodingConstants.STRING, CMD_RESPONSE_OK)}
+	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, CMD_RESPONSE_OK)}
 
 }
 

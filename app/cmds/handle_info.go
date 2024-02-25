@@ -33,8 +33,8 @@ func (h *InfoHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 			{S: "master_repl_offset:" + replication.Offset, Encoding: resp.RESP_ENCODING_CONSTANTS.SEPARATOR},
 		}
 
-		return []string{resp.HandleEncode(respEncodingConstants.BULK_STRING, resp.HandleEncodeSlices(data))}
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.BULK_STRING, resp.HandleEncodeSlices(data))}
 	default:
-		return []string{resp.HandleEncode(respEncodingConstants.ERROR, "invalid argument")}
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "invalid argument")}
 	}
 }

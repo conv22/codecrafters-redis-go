@@ -46,14 +46,14 @@ func (h *ConfigHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 			}
 
 			encodings := []resp.SliceEncoding{
-				{S: flagType, Encoding: respEncodingConstants.BULK_STRING},
-				{S: value, Encoding: respEncodingConstants.BULK_STRING},
+				{S: flagType, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
+				{S: value, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 			}
 
 			return []string{resp.HandleEncodeSliceList(encodings)}
 		}
 	default:
-		return []string{resp.HandleEncode(respEncodingConstants.ERROR, "unsupported cmd")}
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "unsupported cmd")}
 	}
 
 }

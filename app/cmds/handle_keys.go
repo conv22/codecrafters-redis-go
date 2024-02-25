@@ -21,7 +21,7 @@ func (h *KeysHandler) minArgs() int {
 
 func (h *KeysHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	if len(parsedResult) < 1 {
-		resp.HandleEncode(respEncodingConstants.ERROR, "not enough arguments")
+		resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "not enough arguments")
 	}
 
 	if parsedResult[0].Value == "*" {
@@ -29,12 +29,12 @@ func (h *KeysHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 		result := []resp.SliceEncoding{}
 
 		for _, key := range h.storage.GetCurrentStorage().GetKeys() {
-			result = append(result, resp.SliceEncoding{S: key, Encoding: respEncodingConstants.STRING})
+			result = append(result, resp.SliceEncoding{S: key, Encoding: resp.RESP_ENCODING_CONSTANTS.STRING})
 		}
 
 		return []string{resp.HandleEncodeSliceList(result)}
 
 	}
 
-	return []string{resp.HandleEncode(respEncodingConstants.STRING, parsedResult[0].Value)}
+	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, parsedResult[0].Value)}
 }

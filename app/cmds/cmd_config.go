@@ -33,5 +33,3 @@ type ProcessCmdResult struct {
 	BytesInput  []byte
 	IsPropagate bool
 }
-
-var respEncodingConstants = resp.RESP_ENCODING_CONSTANTS
