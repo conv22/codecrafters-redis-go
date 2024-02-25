@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+
+	"github.com/codecrafters-io/redis-starter-go/app/cmds"
 )
 
 func main() {
@@ -24,7 +26,7 @@ func main() {
 			os.Exit(1)
 		}
 		handleHandshake(masterConn)
-		go handleConnection(masterConn, true, nil)
+		go handleConnection(masterConn, nil)
 	} else {
 		replicationChannel = make(chan []byte)
 		go handleSyncWithReplicas(replicationChannel)
@@ -35,16 +37,18 @@ func main() {
 			fmt.Println("Error:", err)
 			continue
 		}
-		go handleConnection(conn, false, replicationChannel)
+		go handleConnection(conn, replicationChannel)
 	}
 }
 
-func handleConnection(conn net.Conn, isPersistentConn bool, replicationChannel chan []byte) {
+func handleConnection(conn net.Conn, replicationChannel chan []byte) {
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
 
+	cmdProcessor := cmds.NewRespCmdProcessor(serverContext.inMemoryStorage, serverContext.cfg, serverContext.replicationStore, conn)
+
 	defer func() {
-		if !isPersistentConn && !serverContext.replicationStore.IsReplicaClient(conn) {
+		if !serverContext.replicationStore.IsReplicaClient(conn) {
 			conn.Close()
 		}
 	}()
@@ -57,14 +61,14 @@ func handleConnection(conn net.Conn, isPersistentConn bool, replicationChannel c
 
 		bytesData := buf[:bytesRead]
 
-		processedResult := serverContext.cmdProcessor.ProcessCmd(bytesData, conn)
+		processedResult := cmdProcessor.ProcessCmd(bytesData, conn)
 
 		for _, item := range processedResult {
 			if len(item.Answer) > 0 {
 				writer.Write([]byte(item.Answer))
 			}
 
-			if replicationChannel != nil && item.IsDuplicate {
+			if replicationChannel != nil && item.IsPropagate {
 				replicationChannel <- item.BytesInput
 			}
 		}

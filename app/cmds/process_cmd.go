@@ -10,48 +10,36 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-var RespEncodingConstants = resp.RESP_ENCODING_CONSTANTS
+func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationStore, conn net.Conn) *RespCmdProcessor {
+	processor := &RespCmdProcessor{}
 
-type RespCmdProcessor struct {
-	parser      *resp.RespParser
-	storage     *storage.StorageCollection
-	config      *config.Config
-	replication *replication.ReplicationStore
-}
+	processor.handlers = make(map[string]CommandHandler)
+	processor.postHandlers = make(map[string]PostHandler)
 
-func NewRespCmdProcessor(p *resp.RespParser, storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationStore) *RespCmdProcessor {
-	return &RespCmdProcessor{
-		parser:      p,
-		storage:     storage,
-		config:      config,
-		replication: replication,
+	processor.handlers[CMD_PING] = newPingHandler()
+	processor.handlers[CMD_ECHO] = newEchoHandler()
+	processor.handlers[CMD_GET] = newGetHandler(storage)
+	processor.handlers[CMD_CONFIG] = newConfigHandler(config)
+	processor.handlers[CMD_KEYS] = newKeysHandler(storage)
+	processor.handlers[CMD_INFO] = newInfoHandler(replication)
+
+	if replication.IsReplica() {
+		// ignore set commands from other clients.
+		if replication.IsCmdFromMaster(conn) {
+			processor.handlers[CMD_SET] = newSetHandler(storage)
+			processor.postHandlers[CMD_SET] = noResponsePostHandler
+		}
+	} else {
+		processor.handlers[CMD_SET] = newSetHandler(storage)
+		processor.postHandlers[CMD_SET] = propagationPostHandler
+		processor.handlers[CMD_PSYNC] = newPsyncHandler(replication, conn)
+		processor.handlers[CMD_REPLCONF] = newReplConfHandler(replication, conn)
 	}
+
+	return processor
 }
 
-const (
-	CMD_PING        = "PING"
-	CMD_PONG        = "PONG"
-	CMD_ECHO        = "ECHO"
-	CMD_GET         = "GET"
-	CMD_SET         = "SET"
-	CMD_CONFIG      = "CONFIG"
-	CMD_KEYS        = "KEYS"
-	CMD_INFO        = "INFO"
-	CMD_REPLCONF    = "REPLCONF"
-	CMD_PSYNC       = "PSYNC"
-	CMD_OK          = "OK"
-	CMD_FULL_RESYNC = "FULLRESYNC"
-	CMD_ACK         = "ACK"
-	CMD_GETACK      = "GETACK"
-)
-
-type ProcessCmdResult struct {
-	Answer      string
-	BytesInput  []byte
-	IsDuplicate bool
-}
-
-func (processor *RespCmdProcessor) getBytesInputFromCmds(cmds []resp.ParsedCmd) []byte {
+func getBytesInputFromCmds(cmds []resp.ParsedCmd) []byte {
 	outputSlices := []resp.SliceEncoding{}
 
 	for _, cmd := range cmds {
@@ -60,20 +48,20 @@ func (processor *RespCmdProcessor) getBytesInputFromCmds(cmds []resp.ParsedCmd) 
 		})
 	}
 
-	return []byte(processor.parser.HandleEncodeSliceList(outputSlices))
+	return []byte(resp.HandleEncodeSliceList(outputSlices))
 
 }
 
 func (processor *RespCmdProcessor) ProcessCmd(data []byte, conn net.Conn) []ProcessCmdResult {
 	result := []ProcessCmdResult{}
-	parsedLines, err := processor.parser.HandleParse(string(data))
+	parsedLines, err := resp.HandleParse(string(data))
 
 	if err != nil {
-		return []ProcessCmdResult{{Answer: processor.parser.HandleEncode(RespEncodingConstants.ERROR, "error parsing the line")}}
+		return []ProcessCmdResult{{Answer: resp.HandleEncode(respEncodingConstants.ERROR, "error parsing the line")}}
 	}
 
 	if len(parsedLines) == 0 {
-		return []ProcessCmdResult{{Answer: processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")}}
+		return []ProcessCmdResult{{Answer: resp.HandleEncode(respEncodingConstants.ERROR, "not enough arguments")}}
 	}
 
 	for _, parsedLine := range parsedLines {
@@ -81,46 +69,22 @@ func (processor *RespCmdProcessor) ProcessCmd(data []byte, conn net.Conn) []Proc
 		firstCmd := strings.ToUpper(parsedLine[0].Value)
 		cmds := parsedLine[1:]
 
-		switch firstCmd {
-		case CMD_PING:
-			result = append(result, ProcessCmdResult{Answer: processor.handlePing()})
-		case CMD_ECHO:
-			result = append(result, ProcessCmdResult{Answer: processor.handleEcho(cmds)})
-		case CMD_SET:
-			result = append(result, ProcessCmdResult{Answer: processor.handleSet(cmds, processor.isCmdFromMaster(conn)), IsDuplicate: true, BytesInput: processor.getBytesInputFromCmds(parsedLine)})
-		case CMD_GET:
-			result = append(result, ProcessCmdResult{Answer: processor.handleGet(cmds)})
-		case CMD_CONFIG:
-			result = append(result, ProcessCmdResult{Answer: processor.handleConfig(cmds)})
-		case CMD_KEYS:
-			result = append(result, ProcessCmdResult{Answer: processor.handleKeys(cmds)})
-		case CMD_INFO:
-			result = append(result, ProcessCmdResult{Answer: processor.handleInfo(cmds)})
-		case CMD_REPLCONF:
-			result = append(result, ProcessCmdResult{Answer: processor.handleReplConf(cmds, conn)})
-		case CMD_PSYNC:
-			answerSlice := processor.handlePsync(cmds, conn)
+		handler, ok := processor.handlers[firstCmd]
 
-			for _, answer := range answerSlice {
-				result = append(result, ProcessCmdResult{Answer: answer})
-			}
-		default:
-			result = append(result, ProcessCmdResult{Answer: processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not able to process the cmd")})
+		if !ok || len(cmds) < handler.minArgs() {
+			continue
+		}
+
+		postHandler, ok := processor.postHandlers[firstCmd]
+
+		if !ok {
+			postHandler = defaultPostHandler
+		}
+
+		for _, item := range handler.processCmd(cmds) {
+			result = append(result, postHandler(item, parsedLine))
 		}
 	}
+
 	return result
-}
-
-func (processor *RespCmdProcessor) isCmdFromMaster(conn net.Conn) bool {
-	if processor.replication.IsMaster() {
-		return false
-	}
-
-	replicationAddress, err := replication.GetReplicationAddress(conn)
-
-	if err != nil {
-		return false
-	}
-
-	return processor.replication.MasterAddress == replicationAddress
 }

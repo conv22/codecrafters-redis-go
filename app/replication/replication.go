@@ -61,6 +61,10 @@ func (r *ReplicationStore) IsMaster() bool {
 	return r.Role == REPLICATION_MASTER_ROLE
 }
 
+func (r *ReplicationStore) HasReplicas() bool {
+	return len(r.replicasMap) > 0
+}
+
 func (r *ReplicationStore) AppendClient(address string, client *ReplicaClient) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -109,4 +113,18 @@ func (r *ReplicationStore) IsReplicaClient(conn net.Conn) bool {
 	_, hasReplica := r.replicasMap[connAddress]
 
 	return hasReplica
+}
+
+func (r *ReplicationStore) IsCmdFromMaster(conn net.Conn) bool {
+	if r.IsMaster() {
+		return false
+	}
+
+	replicationAddress, err := GetReplicationAddress(conn)
+
+	if err != nil {
+		return false
+	}
+
+	return r.MasterAddress == replicationAddress
 }

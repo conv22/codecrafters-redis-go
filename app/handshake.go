@@ -101,7 +101,7 @@ func sendListeningPortConfig(conn net.Conn) error {
 }
 
 func verifyPingResponse(conn net.Conn) error {
-	pingAnswer := []byte(serverContext.parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_PONG))
+	pingAnswer := []byte(resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_PONG))
 	response, err := getResponse(conn, len(pingAnswer))
 
 	if err != nil || !bytes.Equal(pingAnswer, response) {
@@ -111,11 +111,11 @@ func verifyPingResponse(conn net.Conn) error {
 }
 
 func verifyOKResponse(conn net.Conn) error {
-	okAnswer := []byte(serverContext.parser.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_OK))
+	okAnswer := []byte(resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_RESPONSE_OK))
 	response, err := getResponse(conn, len(okAnswer))
 
 	if err != nil || !bytes.Equal(okAnswer, response) {
-		return errors.New(cmds.CMD_OK + err.Error())
+		return errors.New(cmds.CMD_RESPONSE_OK + err.Error())
 	}
 	return nil
 }
@@ -128,8 +128,12 @@ func verifyPsyncResponse(conn net.Conn) error {
 		return errors.New(cmds.CMD_PSYNC + err.Error())
 	}
 
-	// // rdb file
+	// rdb file
 	// rdbFileBytes, err := getResponse(conn, 1024)
+
+	// if err != nil {
+	// 	return err
+	// }
 
 	// if err != nil {
 	// 	collection, err := serverContext.rdbReader.HandleReadFromBytes(rdbFileBytes)
@@ -170,6 +174,6 @@ func sendCapabilityConfig(conn net.Conn) error {
 }
 
 func sendCommand(writer *bufio.Writer, command []resp.SliceEncoding) error {
-	_, err := writer.Write([]byte(serverContext.parser.HandleEncodeSliceList(command)))
+	_, err := writer.Write([]byte(resp.HandleEncodeSliceList(command)))
 	return err
 }

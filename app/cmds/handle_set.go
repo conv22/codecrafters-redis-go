@@ -29,10 +29,21 @@ const (
 	KEEPTTL = "KEEPTTL"
 )
 
-func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd, isCmdFromMaster bool) string {
-	if len(parsedResult) < 2 {
-		processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
+type SetHandler struct {
+	storage *storage.StorageCollection
+}
+
+func newSetHandler(storage *storage.StorageCollection) *SetHandler {
+	return &SetHandler{
+		storage: storage,
 	}
+}
+
+func (h *SetHandler) minArgs() int {
+	return 2
+}
+
+func (h *SetHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	key, value := parsedResult[0].Value, parsedResult[1].Value
 	var options setKeyOptions
 	var expirationTime int64
@@ -44,7 +55,7 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd, isCm
 	lockWrite := false
 
 	if options.NX || options.XX {
-		_, ok := processor.storage.GetItemFromCurrentStorage(key)
+		_, ok := h.storage.GetItemFromCurrentStorage(key)
 
 		if !ok && options.XX || ok && options.NX {
 			lockWrite = true
@@ -53,16 +64,12 @@ func (processor *RespCmdProcessor) handleSet(parsedResult []resp.ParsedCmd, isCm
 	expirationTime = calculateExpirationTime(options)
 
 	if lockWrite {
-		return processor.parser.HandleEncode(RespEncodingConstants.NULL_BULK_STRING, "")
+		return []string{resp.HandleEncode(respEncodingConstants.NULL_BULK_STRING, "")}
 	}
 
-	processor.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, ExpiryMs: expirationTime})
+	h.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, ExpiryMs: expirationTime})
 
-	if isCmdFromMaster {
-		return ""
-	}
-
-	return processor.parser.HandleEncode(RespEncodingConstants.STRING, CMD_OK)
+	return []string{resp.HandleEncode(respEncodingConstants.STRING, CMD_RESPONSE_OK)}
 
 }
 

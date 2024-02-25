@@ -1,23 +1,40 @@
 package cmds
 
-import "github.com/codecrafters-io/redis-starter-go/app/resp"
+import (
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
+	"github.com/codecrafters-io/redis-starter-go/app/storage"
+)
 
-func (processor *RespCmdProcessor) handleKeys(parsedResult []resp.ParsedCmd) string {
+type KeysHandler struct {
+	storage *storage.StorageCollection
+}
+
+func newKeysHandler(storage *storage.StorageCollection) *KeysHandler {
+	return &KeysHandler{
+		storage: storage,
+	}
+}
+
+func (h *KeysHandler) minArgs() int {
+	return 1
+}
+
+func (h *KeysHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	if len(parsedResult) < 1 {
-		processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
+		resp.HandleEncode(respEncodingConstants.ERROR, "not enough arguments")
 	}
 
 	if parsedResult[0].Value == "*" {
 
 		result := []resp.SliceEncoding{}
 
-		for _, key := range processor.storage.GetCurrentStorage().GetKeys() {
-			result = append(result, resp.SliceEncoding{S: key, Encoding: RespEncodingConstants.STRING})
+		for _, key := range h.storage.GetCurrentStorage().GetKeys() {
+			result = append(result, resp.SliceEncoding{S: key, Encoding: respEncodingConstants.STRING})
 		}
 
-		return processor.parser.HandleEncodeSliceList(result)
+		return []string{resp.HandleEncodeSliceList(result)}
 
 	}
 
-	return processor.parser.HandleEncode(RespEncodingConstants.STRING, parsedResult[0].Value)
+	return []string{resp.HandleEncode(respEncodingConstants.STRING, parsedResult[0].Value)}
 }

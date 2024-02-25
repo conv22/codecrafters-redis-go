@@ -1,9 +1,9 @@
 package cmds
 
 import (
-	"flag"
 	"strings"
 
+	"github.com/codecrafters-io/redis-starter-go/app/config"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
@@ -12,10 +12,21 @@ const (
 	configFileName = "dbfilename"
 )
 
-func (processor *RespCmdProcessor) handleConfig(parsedResult []resp.ParsedCmd) string {
-	if len(parsedResult) < 2 {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
+type ConfigHandler struct {
+	config *config.Config
+}
+
+func newConfigHandler(config *config.Config) *ConfigHandler {
+	return &ConfigHandler{
+		config: config,
 	}
+}
+
+func (h *ConfigHandler) minArgs() int {
+	return 2
+}
+
+func (h *ConfigHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	cmd := strings.ToLower(parsedResult[0].Value)
 
 	switch cmd {
@@ -24,27 +35,25 @@ func (processor *RespCmdProcessor) handleConfig(parsedResult []resp.ParsedCmd) s
 			flagType := parsedResult[1].Value
 			value := ""
 			if flagType == configDir {
-				dirFlag := processor.config.DirFlag
-				flag.Parse()
+				dirFlag := h.config.DirFlag
 				value = dirFlag
 
 			}
 
 			if flagType == configFileName {
-				dbFileNameFlag := processor.config.DbFilenameFlag
-				flag.Parse()
+				dbFileNameFlag := h.config.DbFilenameFlag
 				value = dbFileNameFlag
 			}
 
 			encodings := []resp.SliceEncoding{
-				{S: flagType, Encoding: RespEncodingConstants.BULK_STRING},
-				{S: value, Encoding: RespEncodingConstants.BULK_STRING},
+				{S: flagType, Encoding: respEncodingConstants.BULK_STRING},
+				{S: value, Encoding: respEncodingConstants.BULK_STRING},
 			}
 
-			return processor.parser.HandleEncodeSliceList(encodings)
+			return []string{resp.HandleEncodeSliceList(encodings)}
 		}
 	default:
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "unsupported cmd")
+		return []string{resp.HandleEncode(respEncodingConstants.ERROR, "unsupported cmd")}
 	}
 
 }

@@ -7,69 +7,81 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
-func (processor *RespCmdProcessor) handleReplConf(parsedResult []resp.ParsedCmd, conn net.Conn) string {
-	if len(parsedResult) < 2 {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "not enough arguments")
-	}
+type ReplConfHandler struct {
+	replicationStore *replication.ReplicationStore
+	conn             net.Conn
+}
 
-	replicationAddress, err := replication.GetReplicationAddress(conn)
+func newReplConfHandler(replicationStore *replication.ReplicationStore, conn net.Conn) *ReplConfHandler {
+	return &ReplConfHandler{
+		replicationStore: replicationStore,
+		conn:             conn,
+	}
+}
+
+func (h *ReplConfHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
+	replicationAddress, err := replication.GetReplicationAddress(h.conn)
 	if err != nil {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "invalid connection address")
+		return []string{resp.HandleEncode(respEncodingConstants.ERROR, "invalid connection address")}
 	}
 
 	firstCmd := parsedResult[0].Value
 	argument := parsedResult[1].Value
 
 	switch firstCmd {
-	case CMD_GETACK:
-		return processor.handleGetAck(replicationAddress)
+	case CMD_RESPONSE_ACK:
+		return h.handleGetAck(replicationAddress)
 
 	case "listening-port":
-		return processor.handleListeningPort(replicationAddress, argument, conn)
+		return h.handleListeningPort(replicationAddress, argument, h.conn)
 
 	default:
-		return processor.handleUnknownReplConf(replicationAddress)
+		return h.handleUnknownReplConf(replicationAddress)
 	}
 }
 
-func (processor *RespCmdProcessor) handleGetAck(replicationAddress string) string {
-	_, ok := processor.replication.GetReplicaClientByAddress(replicationAddress)
+func (h *ReplConfHandler) minArgs() int {
+	return 2
+}
+
+func (h *ReplConfHandler) handleGetAck(replicationAddress string) []string {
+	_, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
 	if !ok {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "invalid handshake")
+		return []string{resp.HandleEncode(respEncodingConstants.ERROR, "invalid handshake")}
 	}
 
-	return processor.parser.HandleEncodeSliceList([]resp.SliceEncoding{
+	return []string{resp.HandleEncodeSliceList([]resp.SliceEncoding{
 		{
 			S:        CMD_REPLCONF,
-			Encoding: RespEncodingConstants.BULK_STRING,
+			Encoding: respEncodingConstants.BULK_STRING,
 		},
 		{
-			S:        CMD_ACK,
-			Encoding: RespEncodingConstants.BULK_STRING,
+			S:        CMD_RESPONSE_ACK,
+			Encoding: respEncodingConstants.BULK_STRING,
 		},
 		{
 			S:        "0",
-			Encoding: RespEncodingConstants.BULK_STRING,
+			Encoding: respEncodingConstants.BULK_STRING,
 		},
-	})
+	})}
 }
 
-func (processor *RespCmdProcessor) handleListeningPort(replicationAddress, listeningPort string, conn net.Conn) string {
-	client, ok := processor.replication.GetReplicaClientByAddress(replicationAddress)
+func (h *ReplConfHandler) handleListeningPort(replicationAddress, listeningPort string, conn net.Conn) []string {
+	client, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
 	if !ok {
 		client = replication.NewReplicaClient(listeningPort)
-		processor.replication.AppendClient(replicationAddress, client)
+		h.replicationStore.AppendClient(replicationAddress, client)
 	}
 
 	client.AppendConnection(conn)
-	return processor.parser.HandleEncode(RespEncodingConstants.STRING, CMD_OK)
+	return []string{resp.HandleEncode(respEncodingConstants.STRING, CMD_RESPONSE_OK)}
 }
 
-func (processor *RespCmdProcessor) handleUnknownReplConf(replicationAddress string) string {
-	_, ok := processor.replication.GetReplicaClientByAddress(replicationAddress)
+func (h *ReplConfHandler) handleUnknownReplConf(replicationAddress string) []string {
+	_, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
 	if !ok {
-		return processor.parser.HandleEncode(RespEncodingConstants.ERROR, "invalid handshake")
+		return []string{resp.HandleEncode(respEncodingConstants.ERROR, "invalid handshake")}
 	}
 
-	return processor.parser.HandleEncode(RespEncodingConstants.STRING, CMD_OK)
+	return []string{resp.HandleEncode(respEncodingConstants.STRING, CMD_RESPONSE_OK)}
 }

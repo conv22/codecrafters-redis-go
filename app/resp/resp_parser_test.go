@@ -99,11 +99,10 @@ func TestParseRESPV2(t *testing.T) {
 			expectError: false,
 		},
 	}
-	p := &RespParser{}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := p.HandleParse(test.input)
+			result, err := HandleParse(test.input)
 
 			// Check for error
 			if test.expectError && err == nil {

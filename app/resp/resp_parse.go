@@ -88,7 +88,7 @@ func parseValue(s string, result *[][]ParsedCmd, currArrLength, currIndex *int) 
 	return nextStr, err
 }
 
-func (parser *RespParser) HandleParse(s string) ([][]ParsedCmd, error) {
+func HandleParse(s string) ([][]ParsedCmd, error) {
 	result := [][]ParsedCmd{}
 	var currArrLength, currIndex int
 
