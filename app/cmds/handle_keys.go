@@ -20,10 +20,6 @@ func (h *KeysHandler) minArgs() int {
 }
 
 func (h *KeysHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
-	if len(parsedResult) < 1 {
-		resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "not enough arguments")
-	}
-
 	if parsedResult[0].Value == "*" {
 
 		result := []resp.SliceEncoding{}
