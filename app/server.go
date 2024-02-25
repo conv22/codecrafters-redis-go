@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"github.com/codecrafters-io/redis-starter-go/app/cmds"
+	"github.com/codecrafters-io/redis-starter-go/app/handshake"
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
 func main() {
@@ -25,8 +27,8 @@ func main() {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
-		handleHandshake(masterConn)
-		go handleConnection(masterConn, nil)
+		handshake.NewMasterHandshake(serverContext.cfg, serverContext.inMemoryStorage).HandleHandshake(masterConn)
+		go handleConnection(masterConn, nil, true)
 	} else {
 		replicationChannel = make(chan []byte)
 		go handleSyncWithReplicas(replicationChannel)
@@ -37,18 +39,18 @@ func main() {
 			fmt.Println("Error:", err)
 			continue
 		}
-		go handleConnection(conn, replicationChannel)
+		go handleConnection(conn, replicationChannel, false)
 	}
 }
 
-func handleConnection(conn net.Conn, replicationChannel chan []byte) {
+func handleConnection(conn net.Conn, replicationChannel chan []byte, keepAlive bool) {
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
 
 	cmdProcessor := cmds.NewRespCmdProcessor(serverContext.inMemoryStorage, serverContext.cfg, serverContext.replicationStore, conn)
 
 	defer func() {
-		if !serverContext.replicationStore.IsReplicaClient(conn) {
+		if !keepAlive && !serverContext.replicationStore.IsReplicaClient(conn) {
 			conn.Close()
 		}
 	}()
@@ -61,7 +63,23 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte) {
 
 		bytesData := buf[:bytesRead]
 
-		processedResult := cmdProcessor.ProcessCmd(bytesData, conn)
+		parsed, err := resp.HandleParse(string(bytesData))
+
+		if err != nil {
+			continue
+		}
+
+		if serverContext.replicationStore.IsMaster() && len(parsed) > 0 && len(parsed[0]) > 0 && parsed[0][0].Value == handshake.HANDSHAKE_CMD_REPLCONF {
+			err := handshake.NewClientHandshake(serverContext.cfg, serverContext.inMemoryStorage, serverContext.replicationStore).HandleHandshake(conn, parsed[0])
+
+			if err != nil {
+				conn.Close()
+				writer.Flush()
+				break
+			}
+
+		}
+		processedResult := cmdProcessor.ProcessCmd(parsed, conn)
 
 		for _, item := range processedResult {
 			if len(item.Answer) > 0 {

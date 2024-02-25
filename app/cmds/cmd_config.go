@@ -17,23 +17,15 @@ type RespCmdProcessor struct {
 }
 
 const (
-	CMD_PING        = "PING"
-	CMD_PONG        = "PONG"
-	CMD_ECHO        = "ECHO"
-	CMD_GET         = "GET"
-	CMD_SET         = "SET"
-	CMD_CONFIG      = "CONFIG"
-	CMD_KEYS        = "KEYS"
-	CMD_INFO        = "INFO"
-	CMD_RESPONSE_OK = "OK"
-)
-
-// HANDSHAKE SPECIFIC CMDS
-const (
-	CMD_REPLCONF             = "REPLCONF"
-	CMD_PSYNC                = "PSYNC"
-	CMD_RESPONSE_FULL_RESYNC = "FULLRESYNC"
-	CMD_RESPONSE_ACK         = "ACK"
+	CMD_PING          = "PING"
+	CMD_ECHO          = "ECHO"
+	CMD_GET           = "GET"
+	CMD_SET           = "SET"
+	CMD_CONFIG        = "CONFIG"
+	CMD_KEYS          = "KEYS"
+	CMD_INFO          = "INFO"
+	CMD_RESPONSE_OK   = "OK"
+	CMD_RESPONSE_PONG = "PONG"
 )
 
 type ProcessCmdResult struct {

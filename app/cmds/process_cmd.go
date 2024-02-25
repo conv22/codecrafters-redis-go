@@ -32,39 +32,19 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 	} else {
 		processor.handlers[CMD_SET] = newSetHandler(storage)
 		processor.postHandlers[CMD_SET] = propagationPostHandler
-		processor.handlers[CMD_PSYNC] = newPsyncHandler(replication, conn)
-		processor.handlers[CMD_REPLCONF] = newReplConfHandler(replication, conn)
 	}
 
 	return processor
 }
 
-func getBytesInputFromCmds(cmds []resp.ParsedCmd) []byte {
-	outputSlices := []resp.SliceEncoding{}
-
-	for _, cmd := range cmds {
-		outputSlices = append(outputSlices, resp.SliceEncoding{
-			S: cmd.Value, Encoding: cmd.ValueType,
-		})
-	}
-
-	return []byte(resp.HandleEncodeSliceList(outputSlices))
-
-}
-
-func (processor *RespCmdProcessor) ProcessCmd(data []byte, conn net.Conn) []ProcessCmdResult {
+func (processor *RespCmdProcessor) ProcessCmd(parsedData [][]resp.ParsedCmd, conn net.Conn) []ProcessCmdResult {
 	result := []ProcessCmdResult{}
-	parsedLines, err := resp.HandleParse(string(data))
 
-	if err != nil {
-		return []ProcessCmdResult{{Answer: resp.HandleEncode(respEncodingConstants.ERROR, "error parsing the line")}}
-	}
-
-	if len(parsedLines) == 0 {
+	if len(parsedData) == 0 {
 		return []ProcessCmdResult{{Answer: resp.HandleEncode(respEncodingConstants.ERROR, "not enough arguments")}}
 	}
 
-	for _, parsedLine := range parsedLines {
+	for _, parsedLine := range parsedData {
 
 		firstCmd := strings.ToUpper(parsedLine[0].Value)
 		cmds := parsedLine[1:]
