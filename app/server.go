@@ -62,47 +62,65 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, keepAlive b
 	}()
 
 	for {
-		bytesRead, err := conn.Read(buf)
-		if err != nil {
-			break
-		}
-
-		bytesData := buf[:bytesRead]
-
-		parsed, err := resp.HandleParse(string(bytesData))
+		parsed, err := readAndParseData(conn, buf)
 
 		if err != nil {
 			continue
 		}
 
-		if isHandshakeRequest(parsed) {
-			clientHandshake := handshake.NewClientHandshake(serverContext.cfg, serverContext.inMemoryStorage, serverContext.replicationStore)
-
-			nextCmds, err := clientHandshake.HandleHandshake(conn, parsed)
+		if isHandshakeStartedRequest(parsed) {
+			nextCmds, err := performClientHandshake(conn, parsed)
 			if err != nil {
 				continue
 			}
 			if nextCmds != nil {
-				fmt.Print(nextCmds, "NEXT")
+				parsed = nextCmds
 			}
 		}
 
-		processedResult := cmdProcessor.ProcessCmd(parsed, conn)
-
-		for _, item := range processedResult {
-			if len(item.Answer) > 0 {
-				writer.Write([]byte(item.Answer))
-			}
-
-			if replicationChannel != nil && item.IsPropagate {
-				replicationChannel <- item.BytesInput
-			}
-		}
-
-		writer.Flush()
+		processCommands(cmdProcessor.ProcessCmd(parsed, conn), replicationChannel, writer)
 
 	}
 
+}
+
+func readAndParseData(conn net.Conn, buf []byte) ([][]resp.ParsedCmd, error) {
+	bytesRead, err := conn.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	bytesData := buf[:bytesRead]
+
+	return resp.HandleParse(string(bytesData))
+}
+
+func performClientHandshake(conn net.Conn, parsed [][]resp.ParsedCmd) (nextCmds [][]resp.ParsedCmd, err error) {
+	clientHandshake := handshake.NewClientHandshake(serverContext.cfg, serverContext.inMemoryStorage, serverContext.replicationStore)
+
+	return clientHandshake.HandleHandshake(conn, parsed)
+
+}
+
+func processCommands(output []cmds.ProcessCmdResult, replicationChannel chan []byte, writer *bufio.Writer) {
+	for _, item := range output {
+		if replicationChannel != nil && item.IsPropagate {
+			replicationChannel <- item.BytesInput
+		}
+
+		if len(item.Answer) > 0 {
+			writer.Write([]byte(item.Answer))
+		}
+	}
+
+	writer.Flush()
+}
+
+func isHandshakeStartedRequest(parsed [][]resp.ParsedCmd) bool {
+	return serverContext.replicationStore.IsMaster() &&
+		len(parsed) > 0 &&
+		len(parsed[0]) > 0 &&
+		strings.EqualFold(parsed[0][0].Value, handshake.HANDSHAKE_CMD_REPLCONF)
 }
 
 func handleSyncWithReplicas(replicationChannel chan []byte) {
@@ -113,11 +131,4 @@ func handleSyncWithReplicas(replicationChannel chan []byte) {
 
 func shouldCloseConnection(keepAlive bool, conn net.Conn) bool {
 	return !keepAlive && !serverContext.replicationStore.IsReplicaClient(conn)
-}
-
-func isHandshakeRequest(parsed [][]resp.ParsedCmd) bool {
-	return serverContext.replicationStore.IsMaster() &&
-		len(parsed) > 0 &&
-		len(parsed[0]) > 0 &&
-		strings.EqualFold(parsed[0][0].Value, handshake.HANDSHAKE_CMD_REPLCONF)
 }
