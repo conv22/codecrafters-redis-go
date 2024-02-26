@@ -1,14 +1,13 @@
 package handshake
 
 import (
-	"bufio"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/config"
-	"github.com/codecrafters-io/redis-starter-go/app/rdb"
 	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
@@ -16,7 +15,6 @@ import (
 
 type clientHandshake struct {
 	cfg              *config.Config
-	rdbReader        *rdb.Rdb
 	inMemoryStorage  *storage.StorageCollection
 	replicationStore *replication.ReplicationStore
 }
@@ -24,39 +22,73 @@ type clientHandshake struct {
 func NewClientHandshake(cfg *config.Config, inMemoryStorage *storage.StorageCollection, replicationStore *replication.ReplicationStore) *clientHandshake {
 	return &clientHandshake{
 		cfg:              cfg,
-		rdbReader:        rdb.NewRdb(),
 		inMemoryStorage:  inMemoryStorage,
 		replicationStore: replicationStore,
 	}
 }
 
-// Starts from repl conf cmd
-func (h *clientHandshake) HandleHandshake(clientConn net.Conn, parsed []resp.ParsedCmd) error {
-	var steps []func() error
+func (h *clientHandshake) HandleHandshake(clientConn net.Conn, parsedCmd [][]resp.ParsedCmd) (nextCmds [][]resp.ParsedCmd, err error) {
+	handshakeErr := h.handleHandshakeStep(parsedCmd, clientConn)
+	for handshakeErr == nil {
+		nextCmd, err := getResponse(clientConn, 1024)
+		if err != nil {
+			return nil, err
+		}
+		parsedCmd, err = resp.HandleParse(string(nextCmd))
+		if err != nil {
+			return nil, err
+		}
+		nextCmds = parsedCmd
+		handshakeErr = h.handleHandshakeStep(parsedCmd, clientConn)
+	}
 
-	steps = append(steps, func() error {
-		return h.handleFirstStep(parsed, clientConn)
-	})
-	steps = append(steps, func() error {
-		return h.handleSecondStep(clientConn)
-	})
+	if errors.Is(handshakeErr, errUnknownCmd) {
+		return nextCmds, nil
+	}
 
-	for _, fn := range steps {
-		if err := fn(); err != nil {
-			return err
+	return nil, handshakeErr
+}
+
+var errUnknownCmd = errors.New("unknown handshake command")
+
+func (h *clientHandshake) handleHandshakeStep(parsedCmd [][]resp.ParsedCmd, clientConn net.Conn) error {
+	for _, cmd := range parsedCmd {
+		switch strings.ToUpper(cmd[0].Value) {
+		case HANDSHAKE_CMD_REPLCONF:
+			if err := h.handleReplConfCommand(cmd[1:], clientConn); err != nil {
+				return err
+			}
+		case HANDSHAKE_CMD_PSYNC:
+			if err := h.handlePsyncCommand(cmd[1:], clientConn); err != nil {
+				return err
+			}
+		default:
+			return errUnknownCmd
 		}
 	}
 
 	return nil
 }
 
-func (h *clientHandshake) handleFirstStep(parsed []resp.ParsedCmd, clientConn net.Conn) error {
+func (h *clientHandshake) handleReplConfCommand(args []resp.ParsedCmd, clientConn net.Conn) error {
+	switch strings.ToUpper(args[0].Value) {
+	case HANDSHAKE_CMD_LISTENING_PORT:
+		if len(args) >= 2 {
+			return h.handleCreateClient(args[1].Value, clientConn)
+		}
+	case HANDSHAKE_CMD_CAPA:
+		if len(args) >= 2 {
+			return h.handleReplCapa(args[1].Value, clientConn)
+		}
+	}
+	return errors.New("invalid REPLCONF command: missing value")
+}
+
+func (h *clientHandshake) handleCreateClient(listeningPort string, clientConn net.Conn) error {
 	replicationAddress, err := replication.GetReplicationAddress(clientConn)
 	if err != nil {
 		return errors.New("invalid connection address")
 	}
-
-	listeningPort := parsed[1].Value
 
 	client, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
 	if !ok {
@@ -69,12 +101,10 @@ func (h *clientHandshake) handleFirstStep(parsed []resp.ParsedCmd, clientConn ne
 		return err
 	}
 
-	_, err = getResponse(clientConn, 1024)
+	return nil
+}
 
-	if err != nil {
-		return err
-	}
-
+func (h *clientHandshake) handleReplCapa(value string, clientConn net.Conn) error {
 	if err := sendOkCommand(clientConn); err != nil {
 		return err
 	}
@@ -82,20 +112,7 @@ func (h *clientHandshake) handleFirstStep(parsed []resp.ParsedCmd, clientConn ne
 	return nil
 }
 
-func (h *clientHandshake) handleSecondStep(clientConn net.Conn) error {
-
-	response, err := getResponse(clientConn, 1024)
-
-	if err != nil {
-		return err
-	}
-
-	parsed, err := resp.HandleParse(string(response))
-
-	if err != nil || len(parsed) < 1 || len(parsed[0]) < 1 {
-		return errors.New("invalid command")
-	}
-
+func (h *clientHandshake) handlePsyncCommand(args []resp.ParsedCmd, clientConn net.Conn) error {
 	replicationAddress, err := replication.GetReplicationAddress(clientConn)
 	if err != nil {
 		return errors.New("invalid connection address")
@@ -106,28 +123,20 @@ func (h *clientHandshake) handleSecondStep(clientConn net.Conn) error {
 		return errors.New("invalid connection address")
 	}
 
-	replica.SetOffsetAndReplicationId(parsed[0][0].Value, parsed[0][1].Value)
+	replica.SetOffsetAndReplicationId(args[0].Value, args[1].Value)
 
 	const EMPTY_DB_HEX string = "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2"
 
 	decoded, err := hex.DecodeString(EMPTY_DB_HEX)
 	if err != nil {
-		return nil
-	}
-
-	ackCmd := resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, fmt.Sprintf("%s %s %s", HANDSHAKE_CMD_RESPONSE_FULL_RESYNC, h.replicationStore.MasterReplId, h.replicationStore.Offset))
-
-	if err := h.sendAcknowledgmentCommand(clientConn, ackCmd); err != nil {
 		return err
 	}
 
-	if err := verifyOKResponse(clientConn); err != nil {
+	if err := h.sendAcknowledgmentCommand(clientConn, fmt.Sprintf("%s %s %s", HANDSHAKE_CMD_RESPONSE_FULL_RESYNC, h.replicationStore.MasterReplId, h.replicationStore.Offset)); err != nil {
 		return err
 	}
 
-	encodingCmd := resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.BULK_STRING, string(decoded))
-
-	if err := h.sendEncodingCommand(clientConn, encodingCmd); err != nil {
+	if err := h.sendEncodingCommand(clientConn, string(decoded)); err != nil {
 		return err
 	}
 
@@ -139,19 +148,12 @@ func (h *clientHandshake) handleSecondStep(clientConn net.Conn) error {
 }
 
 func (h *clientHandshake) sendAcknowledgmentCommand(conn net.Conn, ackCmd string) error {
-	writer := bufio.NewWriter(conn)
-	defer writer.Flush()
-
-	ackSlice := []resp.SliceEncoding{{S: ackCmd, Encoding: resp.RESP_ENCODING_CONSTANTS.STRING}}
-
-	return sendCommand(writer, ackSlice)
+	return sendCommand(conn, resp.SliceEncoding{S: ackCmd, Encoding: resp.RESP_ENCODING_CONSTANTS.STRING})
 }
 
 func (h *clientHandshake) sendEncodingCommand(conn net.Conn, encodingCmd string) error {
-	writer := bufio.NewWriter(conn)
-	defer writer.Flush()
-
-	encodingSlice := []resp.SliceEncoding{{S: encodingCmd, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING}}
-
-	return sendCommand(writer, encodingSlice)
+	encodingCmd = resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.BULK_STRING, encodingCmd)
+	encodingCmd = strings.TrimSuffix(encodingCmd, resp.RESP_ENCODING_CONSTANTS.SEPARATOR)
+	_, err := conn.Write([]byte(encodingCmd))
+	return err
 }

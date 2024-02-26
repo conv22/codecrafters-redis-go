@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/cmds"
 	"github.com/codecrafters-io/redis-starter-go/app/handshake"
@@ -22,13 +23,7 @@ func main() {
 	var replicationChannel chan []byte
 
 	if serverContext.replicationStore.IsReplica() {
-		masterConn, err := net.Dial("tcp", serverContext.replicationStore.MasterAddress)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		handshake.NewMasterHandshake(serverContext.cfg, serverContext.inMemoryStorage).HandleHandshake(masterConn)
-		go handleConnection(masterConn, nil, true)
+		go handleMasterConnection()
 	} else {
 		replicationChannel = make(chan []byte)
 		go handleSyncWithReplicas(replicationChannel)
@@ -43,6 +38,17 @@ func main() {
 	}
 }
 
+func handleMasterConnection() {
+	masterConn, err := net.Dial("tcp", serverContext.replicationStore.MasterAddress)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	masterHandshake := handshake.NewMasterHandshake(serverContext.cfg, serverContext.inMemoryStorage)
+	masterHandshake.HandleHandshake(masterConn)
+	handleConnection(masterConn, nil, true)
+}
+
 func handleConnection(conn net.Conn, replicationChannel chan []byte, keepAlive bool) {
 	writer := bufio.NewWriter(conn)
 	buf := make([]byte, 1024)
@@ -50,7 +56,7 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, keepAlive b
 	cmdProcessor := cmds.NewRespCmdProcessor(serverContext.inMemoryStorage, serverContext.cfg, serverContext.replicationStore, conn)
 
 	defer func() {
-		if !keepAlive && !serverContext.replicationStore.IsReplicaClient(conn) {
+		if shouldCloseConnection(keepAlive, conn) {
 			conn.Close()
 		}
 	}()
@@ -69,16 +75,18 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, keepAlive b
 			continue
 		}
 
-		if serverContext.replicationStore.IsMaster() && len(parsed) > 0 && len(parsed[0]) > 0 && parsed[0][0].Value == handshake.HANDSHAKE_CMD_REPLCONF {
-			err := handshake.NewClientHandshake(serverContext.cfg, serverContext.inMemoryStorage, serverContext.replicationStore).HandleHandshake(conn, parsed[0])
+		if isHandshakeRequest(parsed) {
+			clientHandshake := handshake.NewClientHandshake(serverContext.cfg, serverContext.inMemoryStorage, serverContext.replicationStore)
 
+			nextCmds, err := clientHandshake.HandleHandshake(conn, parsed)
 			if err != nil {
-				conn.Close()
-				writer.Flush()
-				break
+				continue
 			}
-
+			if nextCmds != nil {
+				fmt.Print(nextCmds, "NEXT")
+			}
 		}
+
 		processedResult := cmdProcessor.ProcessCmd(parsed, conn)
 
 		for _, item := range processedResult {
@@ -101,4 +109,15 @@ func handleSyncWithReplicas(replicationChannel chan []byte) {
 	for {
 		serverContext.replicationStore.PopulateCmdToReplicas(<-replicationChannel)
 	}
+}
+
+func shouldCloseConnection(keepAlive bool, conn net.Conn) bool {
+	return !keepAlive && !serverContext.replicationStore.IsReplicaClient(conn)
+}
+
+func isHandshakeRequest(parsed [][]resp.ParsedCmd) bool {
+	return serverContext.replicationStore.IsMaster() &&
+		len(parsed) > 0 &&
+		len(parsed[0]) > 0 &&
+		strings.EqualFold(parsed[0][0].Value, handshake.HANDSHAKE_CMD_REPLCONF)
 }
