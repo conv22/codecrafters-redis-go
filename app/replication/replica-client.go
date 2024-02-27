@@ -26,7 +26,6 @@ func (client *ReplicaClient) SetOffsetAndReplicationId(offset, replicationId str
 	client.Offset = offset
 	client.ReplicationId = replicationId
 }
-
 func (client *ReplicaClient) AppendConnection(conn net.Conn) {
 	client.mu.Lock()
 	defer client.mu.Unlock()

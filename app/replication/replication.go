@@ -2,6 +2,7 @@ package replication
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"sync"
 )
@@ -72,13 +73,20 @@ func (r *ReplicationStore) AppendClient(address string, client *ReplicaClient) {
 }
 
 func (r *ReplicationStore) PopulateCmdToReplicas(cmd []byte) {
+	var wg sync.WaitGroup
 	for _, replica := range r.replicasMap {
 		replica.mu.Lock()
 		for _, conn := range replica.connections {
-			conn.Write(cmd)
+			wg.Add(1)
+			go func(conn net.Conn) {
+				defer wg.Done()
+				fmt.Print(string(cmd))
+				conn.Write(cmd)
+			}(conn)
 		}
 		replica.mu.Unlock()
 	}
+	wg.Wait()
 }
 
 func GetReplicationAddress(conn net.Conn) (string, error) {

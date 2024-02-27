@@ -32,6 +32,8 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 	} else {
 		processor.handlers[CMD_SET] = newSetHandler(storage)
 		processor.postHandlers[CMD_SET] = propagationPostHandler
+		processor.handlers[CMD_PSYNC] = newPsyncHandler(replication, conn)
+		processor.handlers[CMD_REPLCONF] = newReplConfHandler(replication, conn)
 	}
 
 	return processor

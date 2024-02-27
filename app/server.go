@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 	"os"
-	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/cmds"
 	"github.com/codecrafters-io/redis-starter-go/app/handshake"
@@ -23,7 +21,13 @@ func main() {
 	var replicationChannel chan []byte
 
 	if serverContext.replicationStore.IsReplica() {
-		go handleMasterConnection()
+		masterConn, err := net.Dial("tcp", serverContext.replicationStore.MasterAddress)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		handshake.New(serverContext.cfg, serverContext.inMemoryStorage).HandleHandshake(masterConn)
+		go handleConnection(masterConn, nil)
 	} else {
 		replicationChannel = make(chan []byte)
 		go handleSyncWithReplicas(replicationChannel)
@@ -34,30 +38,28 @@ func main() {
 			fmt.Println("Error:", err)
 			continue
 		}
-		go handleConnection(conn, replicationChannel, false)
+		go handleConnection(conn, replicationChannel)
 	}
 }
 
-func handleMasterConnection() {
-	masterConn, err := net.Dial("tcp", serverContext.replicationStore.MasterAddress)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	masterHandshake := handshake.NewMasterHandshake(serverContext.cfg, serverContext.inMemoryStorage)
-	masterHandshake.HandleHandshake(masterConn)
-	handleConnection(masterConn, nil, true)
-}
-
-func handleConnection(conn net.Conn, replicationChannel chan []byte, keepAlive bool) {
-	writer := bufio.NewWriter(conn)
-	buf := make([]byte, 1024)
+func handleConnection(conn net.Conn, replicationChannel chan []byte) {
 	cmdProcessor := cmds.NewRespCmdProcessor(serverContext.inMemoryStorage, serverContext.cfg, serverContext.replicationStore, conn)
-	processingChannel := make(chan []cmds.ProcessCmdResult)
-	go processConnectionCommands(processingChannel, replicationChannel, writer)
+	processingChannel := make(chan []byte)
 
-	defer conn.Close()
-	defer close(replicationChannel)
+	defer func() {
+		conn.Close()
+		if replicationChannel != nil {
+			close(replicationChannel)
+		}
+	}()
+
+	go func() {
+		for outputResult := range processingChannel {
+			conn.Write(outputResult)
+		}
+	}()
+
+	buf := make([]byte, 1024)
 
 	for {
 		bytesRead, err := conn.Read(buf)
@@ -71,47 +73,19 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, keepAlive b
 			continue
 		}
 
-		if isHandshakeStartedRequest(parsed) {
-			nextCmds, err := performClientHandshake(conn, parsed)
-			if err != nil {
-				continue
-			}
-			if nextCmds != nil {
-				parsed = nextCmds
-			}
-		}
+		output := cmdProcessor.ProcessCmd(parsed, conn)
 
-		processingChannel <- cmdProcessor.ProcessCmd(parsed, conn)
-	}
-
-}
-
-func performClientHandshake(conn net.Conn, parsed []resp.ParsedCmd) (nextCmds []resp.ParsedCmd, err error) {
-	clientHandshake := handshake.NewClientHandshake(serverContext.cfg, serverContext.inMemoryStorage, serverContext.replicationStore)
-
-	return clientHandshake.HandleHandshake(conn, parsed)
-
-}
-
-func processConnectionCommands(output chan []cmds.ProcessCmdResult, replicationChannel chan []byte, writer *bufio.Writer) {
-	for outputResult := range output {
-		for _, item := range outputResult {
+		for _, item := range output {
 			if replicationChannel != nil && item.IsPropagate {
 				replicationChannel <- item.BytesInput
 			}
 
 			if len(item.Answer) > 0 {
-				writer.Write([]byte(item.Answer))
-				writer.Flush()
+				processingChannel <- []byte(item.Answer)
 			}
 		}
 	}
 
-}
-func isHandshakeStartedRequest(parsed []resp.ParsedCmd) bool {
-	return serverContext.replicationStore.IsMaster() &&
-		len(parsed) > 0 &&
-		strings.EqualFold(parsed[0].Value, handshake.HANDSHAKE_CMD_REPLCONF)
 }
 
 func handleSyncWithReplicas(replicationChannel chan []byte) {
