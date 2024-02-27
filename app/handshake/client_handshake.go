@@ -27,7 +27,7 @@ func NewClientHandshake(cfg *config.Config, inMemoryStorage *storage.StorageColl
 	}
 }
 
-func (h *clientHandshake) HandleHandshake(clientConn net.Conn, parsedCmd [][]resp.ParsedCmd) (nextCmds [][]resp.ParsedCmd, err error) {
+func (h *clientHandshake) HandleHandshake(clientConn net.Conn, parsedCmd []resp.ParsedCmd) (nextCmds []resp.ParsedCmd, err error) {
 	handshakeErr := h.handleHandshakeStep(parsedCmd, clientConn)
 	for handshakeErr == nil {
 		nextCmd, err := getResponse(clientConn, 1024)
@@ -51,20 +51,18 @@ func (h *clientHandshake) HandleHandshake(clientConn net.Conn, parsedCmd [][]res
 
 var errUnknownCmd = errors.New("unknown handshake command")
 
-func (h *clientHandshake) handleHandshakeStep(parsedCmd [][]resp.ParsedCmd, clientConn net.Conn) error {
-	for _, cmd := range parsedCmd {
-		switch strings.ToUpper(cmd[0].Value) {
-		case HANDSHAKE_CMD_REPLCONF:
-			if err := h.handleReplConfCommand(cmd[1:], clientConn); err != nil {
-				return err
-			}
-		case HANDSHAKE_CMD_PSYNC:
-			if err := h.handlePsyncCommand(cmd[1:], clientConn); err != nil {
-				return err
-			}
-		default:
-			return errUnknownCmd
+func (h *clientHandshake) handleHandshakeStep(parsedCmd []resp.ParsedCmd, clientConn net.Conn) error {
+	switch strings.ToUpper(parsedCmd[0].Value) {
+	case HANDSHAKE_CMD_REPLCONF:
+		if err := h.handleReplConfCommand(parsedCmd[1:], clientConn); err != nil {
+			return err
 		}
+	case HANDSHAKE_CMD_PSYNC:
+		if err := h.handlePsyncCommand(parsedCmd[1:], clientConn); err != nil {
+			return err
+		}
+	default:
+		return errUnknownCmd
 	}
 
 	return nil

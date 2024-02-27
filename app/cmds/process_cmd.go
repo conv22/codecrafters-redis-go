@@ -37,33 +37,30 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 	return processor
 }
 
-func (processor *RespCmdProcessor) ProcessCmd(parsedData [][]resp.ParsedCmd, conn net.Conn) []ProcessCmdResult {
+func (processor *RespCmdProcessor) ProcessCmd(parsedData []resp.ParsedCmd, conn net.Conn) []ProcessCmdResult {
 	result := []ProcessCmdResult{}
 
 	if len(parsedData) == 0 {
 		return []ProcessCmdResult{{Answer: resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "not enough arguments")}}
 	}
 
-	for _, parsedLine := range parsedData {
+	firstCmd := strings.ToUpper(parsedData[0].Value)
+	cmds := parsedData[1:]
 
-		firstCmd := strings.ToUpper(parsedLine[0].Value)
-		cmds := parsedLine[1:]
+	handler, ok := processor.handlers[firstCmd]
 
-		handler, ok := processor.handlers[firstCmd]
+	if !ok || len(cmds) < handler.minArgs() {
+		return []ProcessCmdResult{}
+	}
 
-		if !ok || len(cmds) < handler.minArgs() {
-			continue
-		}
+	postHandler, ok := processor.postHandlers[firstCmd]
 
-		postHandler, ok := processor.postHandlers[firstCmd]
+	if !ok {
+		postHandler = defaultPostHandler
+	}
 
-		if !ok {
-			postHandler = defaultPostHandler
-		}
-
-		for _, item := range handler.processCmd(cmds) {
-			result = append(result, postHandler(item, parsedLine))
-		}
+	for _, item := range handler.processCmd(cmds) {
+		result = append(result, postHandler(item, parsedData))
 	}
 
 	return result

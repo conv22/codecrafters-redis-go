@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func parseLength(s string) (nextStr string, nextLength int, err error) {
+func parseLength(s string) (nextStr string, length int, err error) {
 	separatorIndex := strings.Index(s, RESP_ENCODING_CONSTANTS.SEPARATOR)
 	if separatorIndex == -1 {
 		return "", 0, errors.New("separator not found")
@@ -50,17 +50,14 @@ func parseData(s string) (nextStr, value string, err error) {
 	return s[separatorIndex+len(RESP_ENCODING_CONSTANTS.SEPARATOR):], s[:separatorIndex], nil
 }
 
-func parseValue(s string, result *[][]ParsedCmd, currArrLength, currIndex *int) (nextStr string, err error) {
+func parseValue(s string, result *[]ParsedCmd, arrLength *int) (nextStr string, err error) {
 	var value string
 	encoding := string(s[0])
 	str := s[1:]
 	switch encoding {
 	case RESP_ENCODING_CONSTANTS.LENGTH:
-		if *currArrLength > 0 {
-			*currIndex++
-		}
-		nextStr, nextLength, err := parseLength(str)
-		*currArrLength = nextLength
+		nextStr, length, err := parseLength(str)
+		*arrLength = length
 		return nextStr, err
 	case RESP_ENCODING_CONSTANTS.BULK_STRING:
 		nextStr, value, err = parseLengthData(str)
@@ -77,20 +74,14 @@ func parseValue(s string, result *[][]ParsedCmd, currArrLength, currIndex *int) 
 		Value:     value,
 	}
 
-	if len(*result) > *currIndex {
-		(*result)[*currIndex] = append((*result)[*currIndex], item)
-
-	} else {
-		newSlice := []ParsedCmd{item}
-		*result = append(*result, newSlice)
-	}
+	*result = append(*result, item)
 
 	return nextStr, err
 }
 
-func HandleParse(s string) ([][]ParsedCmd, error) {
-	result := [][]ParsedCmd{}
-	var currArrLength, currIndex int
+func HandleParse(s string) ([]ParsedCmd, error) {
+	result := []ParsedCmd{}
+	var arrLength int
 
 	if len(s) == 0 {
 		return result, nil
@@ -101,12 +92,16 @@ func HandleParse(s string) ([][]ParsedCmd, error) {
 
 	str := strings.Clone(s)
 	for len(str) != 0 {
-		parsedValue, err := parseValue(str, &result, &currArrLength, &currIndex)
+		parsedValue, err := parseValue(str, &result, &arrLength)
 		if err != nil {
 			return nil, err
 		}
 		str = parsedValue
 
+	}
+
+	if arrLength > 0 && arrLength != len(result) {
+		return nil, errors.New("invalid array length specified")
 	}
 
 	return result, nil
