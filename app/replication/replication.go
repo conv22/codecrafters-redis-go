@@ -2,7 +2,6 @@ package replication
 
 import (
 	"flag"
-	"fmt"
 	"net"
 	"sync"
 )
@@ -80,7 +79,6 @@ func (r *ReplicationStore) PopulateCmdToReplicas(cmd []byte) {
 			wg.Add(1)
 			go func(conn net.Conn) {
 				defer wg.Done()
-				fmt.Print(string(cmd))
 				conn.Write(cmd)
 			}(conn)
 		}

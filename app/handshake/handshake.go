@@ -125,13 +125,13 @@ func (h *handshake) verifyPingResponse(conn net.Conn) error {
 }
 
 func (h *handshake) verifyPsyncResponse(conn net.Conn) error {
-	_, err := getResponse(conn, 1024)
+	_, err := getResponse(conn, 0)
 
 	if err != nil {
 		return errors.New(cmds.CMD_PSYNC + err.Error())
 	}
 
-	rdbFileBytes, err := getResponse(conn, 1024)
+	rdbFileBytes, err := getResponse(conn, 0)
 
 	fmt.Print(string(rdbFileBytes))
 

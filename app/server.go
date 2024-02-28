@@ -45,6 +45,7 @@ func main() {
 func handleConnection(conn net.Conn, replicationChannel chan []byte) {
 	cmdProcessor := cmds.NewRespCmdProcessor(serverContext.inMemoryStorage, serverContext.cfg, serverContext.replicationStore, conn)
 	processingChannel := make(chan []byte)
+	reader := resp.NewReader(conn)
 
 	defer func() {
 		conn.Close()
@@ -59,17 +60,11 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte) {
 		}
 	}()
 
-	buf := make([]byte, 1024)
-
 	for {
-		bytesRead, err := conn.Read(buf)
-		if err != nil {
-			continue
-		}
 
-		parsed, err := resp.HandleParse(string(buf[:bytesRead]))
+		parsed, err := reader.HandleRead()
 
-		if err != nil {
+		if err != nil || len(parsed) == 0 {
 			continue
 		}
 
