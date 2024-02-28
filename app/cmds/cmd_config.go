@@ -28,6 +28,7 @@ const (
 	CMD_PSYNC                = "PSYNC"
 	CMD_RESPONSE_FULL_RESYNC = "FULLRESYNC"
 	CMD_RESPONSE_ACK         = "ACK"
+	CMD_GETACK               = "GETACK"
 	CMD_RESPONSE_OK          = "OK"
 	CMD_RESPONSE_PONG        = "PONG"
 )

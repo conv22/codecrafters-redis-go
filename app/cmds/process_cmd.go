@@ -1,6 +1,7 @@
 package cmds
 
 import (
+	"fmt"
 	"net"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationStore, conn net.Conn) *RespCmdProcessor {
+func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationStore, conn net.Conn, isMasterConn bool) *RespCmdProcessor {
 	processor := &RespCmdProcessor{}
 
 	processor.handlers = make(map[string]CommandHandler)
@@ -22,10 +23,12 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 	processor.handlers[CMD_CONFIG] = newConfigHandler(config)
 	processor.handlers[CMD_KEYS] = newKeysHandler(storage)
 	processor.handlers[CMD_INFO] = newInfoHandler(replication)
+	processor.handlers[CMD_REPLCONF] = newReplConfHandler(replication, conn)
 
 	if replication.IsReplica() {
 		// ignore set commands from other clients.
-		if replication.IsCmdFromMaster(conn) {
+		if isMasterConn {
+			fmt.Println("cmd from master")
 			processor.handlers[CMD_SET] = newSetHandler(storage)
 			processor.postHandlers[CMD_SET] = noResponsePostHandler
 		}
@@ -33,7 +36,6 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 		processor.handlers[CMD_SET] = newSetHandler(storage)
 		processor.postHandlers[CMD_SET] = propagationPostHandler
 		processor.handlers[CMD_PSYNC] = newPsyncHandler(replication, conn)
-		processor.handlers[CMD_REPLCONF] = newReplConfHandler(replication, conn)
 	}
 
 	return processor

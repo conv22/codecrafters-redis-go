@@ -19,6 +19,7 @@ type ReplicationStore struct {
 	MasterReplId  string
 	MasterAddress string
 	mu            sync.RWMutex
+	queueMu       sync.RWMutex
 	replicasMap   map[string]*ReplicaClient
 }
 
@@ -72,11 +73,13 @@ func (r *ReplicationStore) AppendClient(address string, client *ReplicaClient) {
 }
 
 func (r *ReplicationStore) PopulateCmdToReplicas(cmd []byte) {
+	r.queueMu.Lock()
+	defer r.queueMu.Unlock()
 	var wg sync.WaitGroup
 	for _, replica := range r.replicasMap {
 		replica.mu.Lock()
+		wg.Add(len(replica.connections))
 		for _, conn := range replica.connections {
-			wg.Add(1)
 			go func(conn net.Conn) {
 				defer wg.Done()
 				conn.Write(cmd)
@@ -86,7 +89,6 @@ func (r *ReplicationStore) PopulateCmdToReplicas(cmd []byte) {
 	}
 	wg.Wait()
 }
-
 func GetReplicationAddress(conn net.Conn) (string, error) {
 	masterLocalAddr := conn.LocalAddr().String()
 	host, port, err := net.SplitHostPort(masterLocalAddr)
@@ -119,18 +121,4 @@ func (r *ReplicationStore) IsReplicaClient(conn net.Conn) bool {
 	_, hasReplica := r.replicasMap[connAddress]
 
 	return hasReplica
-}
-
-func (r *ReplicationStore) IsCmdFromMaster(conn net.Conn) bool {
-	if r.IsMaster() {
-		return false
-	}
-
-	replicationAddress, err := GetReplicationAddress(conn)
-
-	if err != nil {
-		return false
-	}
-
-	return r.MasterAddress == replicationAddress
 }

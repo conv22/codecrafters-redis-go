@@ -27,9 +27,11 @@ func main() {
 			return
 		}
 		reader := resp.NewReader(masterConn)
+		doneCh := make(chan struct{})
 
-		handshake.New(serverContext.cfg, serverContext.inMemoryStorage, masterConn, reader).HandleHandshake()
-		go handleConnection(masterConn, nil, reader)
+		go handshake.New(serverContext.cfg, serverContext.inMemoryStorage, masterConn, reader, doneCh).HandleHandshake()
+		<-doneCh
+		go handleConnection(masterConn, nil, reader, true)
 	} else {
 		replicationChannel = make(chan []byte)
 		go handleSyncWithReplicas(replicationChannel)
@@ -41,12 +43,12 @@ func main() {
 			continue
 		}
 		reader := resp.NewReader(conn)
-		go handleConnection(conn, replicationChannel, reader)
+		go handleConnection(conn, replicationChannel, reader, false)
 	}
 }
 
-func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *resp.RespReader) {
-	cmdProcessor := cmds.NewRespCmdProcessor(serverContext.inMemoryStorage, serverContext.cfg, serverContext.replicationStore, conn)
+func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *resp.RespReader, isMasterConn bool) {
+	cmdProcessor := cmds.NewRespCmdProcessor(serverContext.inMemoryStorage, serverContext.cfg, serverContext.replicationStore, conn, isMasterConn)
 	processingChannel := make(chan []byte)
 
 	defer func() {
@@ -76,6 +78,8 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *res
 
 		for _, item := range output {
 			if replicationChannel != nil && item.IsPropagate {
+				fmt.Print("POPULATE", item.Answer)
+
 				replicationChannel <- item.BytesInput
 			}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
+// todo, divide into master and replica version
 type ReplConfHandler struct {
 	replicationStore *replication.ReplicationStore
 	conn             net.Conn
@@ -29,7 +30,7 @@ func (h *ReplConfHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	argument := parsedResult[1].Value
 
 	switch firstCmd {
-	case CMD_RESPONSE_ACK:
+	case CMD_GETACK:
 		return h.handleGetAck(replicationAddress)
 
 	case "listening-port":
@@ -45,11 +46,6 @@ func (h *ReplConfHandler) minArgs() int {
 }
 
 func (h *ReplConfHandler) handleGetAck(replicationAddress string) []string {
-	_, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
-	if !ok {
-		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "invalid handshake")}
-	}
-
 	return []string{resp.HandleEncodeSliceList([]resp.SliceEncoding{
 		{
 			S:        CMD_REPLCONF,
