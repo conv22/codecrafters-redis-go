@@ -1,7 +1,6 @@
 package handshake
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -16,182 +15,179 @@ import (
 type handshake struct {
 	cfg             *config.Config
 	rdbReader       *rdb.Rdb
+	respReader      *resp.RespReader
 	inMemoryStorage *storage.StorageCollection
+	masterConn      net.Conn
 }
 
-func New(cfg *config.Config, inMemoryStorage *storage.StorageCollection) *handshake {
+func New(cfg *config.Config, inMemoryStorage *storage.StorageCollection, masterConn net.Conn, respReader *resp.RespReader) *handshake {
 	return &handshake{
 		cfg:             cfg,
 		rdbReader:       rdb.NewRdb(),
 		inMemoryStorage: inMemoryStorage,
+		masterConn:      masterConn,
+		respReader:      respReader,
 	}
 }
 
-func (h *handshake) HandleHandshake(masterConn net.Conn) error {
-	var steps []func() error
+func (h *handshake) HandleHandshake() error {
+	steps := []func() error{h.handleFirstStep, h.handleSecondStep, h.handleThirdStep}
 
-	steps = append(steps, func() error {
-		return h.handleFirstStep(masterConn)
-	})
-	steps = append(steps, func() error {
-		return h.handleSecondStep(masterConn)
-	})
-	steps = append(steps, func() error {
-		return h.handleThirdStep(masterConn)
-	})
-
-	for _, fn := range steps {
+	for i, fn := range steps {
 		if err := fn(); err != nil {
 			return err
 		}
+		fmt.Printf("%d handshake step complete \n", i+1)
 	}
 
 	return nil
 }
 
-func (h *handshake) handleFirstStep(masterConn net.Conn) error {
-	if err := h.sendPingCommand(masterConn); err != nil {
-		return err
-	}
-	fmt.Println("PING")
-
-	if err := h.verifyPingResponse(masterConn); err != nil {
+func (h *handshake) handleFirstStep() error {
+	if err := h.sendPingCommand(); err != nil {
 		return err
 	}
 
-	fmt.Println("PONG")
-
-	return nil
-}
-
-func (h *handshake) handleSecondStep(masterConn net.Conn) error {
-	if err := h.sendListeningPortConfig(masterConn); err != nil {
-		return err
-	}
-
-	fmt.Println("LISTENING PORT")
-
-	if err := verifyOKResponse(masterConn); err != nil {
-		return err
-	}
-
-	if err := h.sendCapabilityConfig(masterConn); err != nil {
-		return err
-	}
-
-	fmt.Println("CAPA")
-
-	if err := verifyOKResponse(masterConn); err != nil {
+	if err := h.verifyPingResponse(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (h *handshake) handleThirdStep(masterConn net.Conn) error {
-	if err := h.sendPsyncCommand(masterConn); err != nil {
+func (h *handshake) handleSecondStep() error {
+	if err := h.sendListeningPortConfig(); err != nil {
 		return err
 	}
 
-	fmt.Println("PSYNC")
+	if err := h.verifyOKResponse(); err != nil {
+		return err
+	}
 
-	if err := h.verifyPsyncResponse(masterConn); err != nil {
+	if err := h.sendCapabilityConfig(); err != nil {
+		return err
+	}
+
+	if err := h.verifyOKResponse(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (h *handshake) sendPsyncCommand(conn net.Conn) error {
+func (h *handshake) handleThirdStep() error {
+	if err := h.sendPsyncCommand(); err != nil {
+		return err
+	}
+
+	if err := h.verifyPsyncResponse(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *handshake) sendPsyncCommand() error {
 	psyncCommand := []resp.SliceEncoding{
 		{S: cmds.CMD_PSYNC, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 		{S: "?", Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 		{S: "-1", Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 	}
 
-	_, err := conn.Write([]byte(resp.HandleEncodeSliceList(psyncCommand)))
+	_, err := h.masterConn.Write([]byte(resp.HandleEncodeSliceList(psyncCommand)))
 
 	return err
 }
 
-func (h *handshake) verifyPingResponse(conn net.Conn) error {
-	pingAnswer := []byte(resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_RESPONSE_PONG))
-	response, err := getResponse(conn, len(pingAnswer))
+func (h *handshake) verifyPingResponse() error {
 
-	if err != nil || !bytes.Equal(pingAnswer, response) {
-		return errors.New(cmds.CMD_RESPONSE_PONG + err.Error())
+	response, err := h.handleReadFromConnection()
+
+	if err != nil {
+		return err
 	}
+
+	if len(response) == 0 || cmds.CMD_RESPONSE_PONG != response[0].Value {
+		return errors.New("invalid ping response")
+	}
+
 	return nil
 }
 
-func (h *handshake) verifyPsyncResponse(conn net.Conn) error {
-	_, err := getResponse(conn, 0)
+func (h *handshake) verifyPsyncResponse() error {
+	// ignore for now,  CMD_RESPONSE_FULL_RESYNC, h.replicationStore.MasterReplId, h.replicationStore.Offset
+	_, err := h.handleReadFromConnection()
 
 	if err != nil {
-		return errors.New(cmds.CMD_PSYNC + err.Error())
+		return err
 	}
 
-	rdbFileBytes, err := getResponse(conn, 0)
-
-	fmt.Print(string(rdbFileBytes))
+	rdbFile, err := h.respReader.HandleReadRdbFile()
 
 	if err != nil {
-		if collection, err := h.rdbReader.HandleReadFromBytes(rdbFileBytes); err != nil {
-			h.inMemoryStorage = collection
-		}
+		return err
+	}
+
+	if collection, err := h.rdbReader.HandleReadFromBytes(rdbFile); err != nil {
+		h.inMemoryStorage = collection
 	}
 
 	return err
 }
 
-func (h *handshake) sendCapabilityConfig(conn net.Conn) error {
+func (h *handshake) sendCapabilityConfig() error {
 	capabilityConfig := []resp.SliceEncoding{
 		{S: cmds.CMD_REPLCONF, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 		{S: "capa", Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 		{S: "psync2", Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 	}
-	_, err := conn.Write([]byte(resp.HandleEncodeSliceList(capabilityConfig)))
+	_, err := h.masterConn.Write([]byte(resp.HandleEncodeSliceList(capabilityConfig)))
 
 	return err
 }
 
-func (h *handshake) sendPingCommand(conn net.Conn) error {
-	_, err := conn.Write([]byte(resp.HandleEncodeSliceList([]resp.SliceEncoding{{S: cmds.CMD_PING, Encoding: resp.RESP_ENCODING_CONSTANTS.STRING}})))
+func (h *handshake) sendPingCommand() error {
+	_, err := h.masterConn.Write([]byte(resp.HandleEncodeSliceList([]resp.SliceEncoding{{S: cmds.CMD_PING, Encoding: resp.RESP_ENCODING_CONSTANTS.STRING}})))
 
 	return err
 }
 
-func (h *handshake) sendListeningPortConfig(conn net.Conn) error {
+func (h *handshake) sendListeningPortConfig() error {
 	listeningPortConfig := []resp.SliceEncoding{
 		{S: cmds.CMD_REPLCONF, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 		{S: "listening-port", Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 		{S: h.cfg.Port, Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING},
 	}
 
-	_, err := conn.Write([]byte(resp.HandleEncodeSliceList(listeningPortConfig)))
+	_, err := h.masterConn.Write([]byte(resp.HandleEncodeSliceList(listeningPortConfig)))
 
 	return err
 }
 
-func getResponse(conn net.Conn, bufLength int) ([]byte, error) {
-	buf := make([]byte, bufLength)
+func (h *handshake) verifyOKResponse() error {
+	response, err := h.handleReadFromConnection()
 
-	bytesToRead, err := conn.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	if len(response) == 0 || cmds.CMD_RESPONSE_OK != response[0].Value {
+		return errors.New("OK validation failed")
+	}
+
+	return nil
+}
+
+func (h *handshake) handleReadFromConnection() ([]resp.ParsedCmd, error) {
+	parsed, err := h.respReader.HandleRead()
 
 	if err != nil {
 		return nil, err
 	}
 
-	return buf[:bytesToRead], nil
-}
-
-func verifyOKResponse(conn net.Conn) error {
-	okAnswer := []byte(resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, cmds.CMD_RESPONSE_OK))
-	response, err := getResponse(conn, len(okAnswer))
-	fmt.Println(string(response), "RESPONSE")
-
-	if err != nil || !bytes.Equal(okAnswer, response) {
-		return errors.New(cmds.CMD_RESPONSE_OK + err.Error())
+	if len(parsed) > 0 {
+		return parsed, nil
 	}
-	return nil
+
+	return nil, errors.New("no data received after multiple attempts")
 }

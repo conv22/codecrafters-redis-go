@@ -26,8 +26,10 @@ func main() {
 			fmt.Println(err.Error())
 			return
 		}
-		handshake.New(serverContext.cfg, serverContext.inMemoryStorage).HandleHandshake(masterConn)
-		go handleConnection(masterConn, nil)
+		reader := resp.NewReader(masterConn)
+
+		handshake.New(serverContext.cfg, serverContext.inMemoryStorage, masterConn, reader).HandleHandshake()
+		go handleConnection(masterConn, nil, reader)
 	} else {
 		replicationChannel = make(chan []byte)
 		go handleSyncWithReplicas(replicationChannel)
@@ -38,14 +40,14 @@ func main() {
 			fmt.Println("Error:", err)
 			continue
 		}
-		go handleConnection(conn, replicationChannel)
+		reader := resp.NewReader(conn)
+		go handleConnection(conn, replicationChannel, reader)
 	}
 }
 
-func handleConnection(conn net.Conn, replicationChannel chan []byte) {
+func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *resp.RespReader) {
 	cmdProcessor := cmds.NewRespCmdProcessor(serverContext.inMemoryStorage, serverContext.cfg, serverContext.replicationStore, conn)
 	processingChannel := make(chan []byte)
-	reader := resp.NewReader(conn)
 
 	defer func() {
 		conn.Close()
@@ -67,6 +69,8 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte) {
 		if err != nil || len(parsed) == 0 {
 			continue
 		}
+
+		fmt.Println(parsed)
 
 		output := cmdProcessor.ProcessCmd(parsed, conn)
 

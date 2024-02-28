@@ -2,14 +2,12 @@ package resp
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 )
 
 func (r *RespReader) HandleRead() ([]ParsedCmd, error) {
-	defer func() {
-		r.result = make([]ParsedCmd, 0)
-	}()
 	encoding, err := r.reader.ReadByte()
 
 	if err != nil {
@@ -22,84 +20,116 @@ func (r *RespReader) HandleRead() ([]ParsedCmd, error) {
 	encStr := string(encoding)
 
 	if encStr == RESP_ENCODING_CONSTANTS.LENGTH {
-		if err := r.parseArray(); err != nil {
+		result, err := r.parseArray()
+
+		if err != nil {
 			return nil, err
 		}
-	} else {
-		if err := r.parseByEncoding(encStr); err != nil {
-			return nil, err
-		}
+
+		return result, nil
 	}
 
-	return r.result, err
+	result, err := r.parseByEncoding(encStr)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return []ParsedCmd{result}, nil
+
 }
 
-func (r *RespReader) parseByEncoding(enc string) (err error) {
+func (r *RespReader) HandleReadRdbFile() ([]byte, error) {
+	_, err := r.reader.ReadByte()
+
+	if err != nil {
+		return nil, err
+	}
+
+	fileLength, err := r.parseInteger()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return r.readValueByNOfBytes(fileLength)
+}
+
+func (r *RespReader) parseByEncoding(enc string) (result ParsedCmd, err error) {
 	switch enc {
-	case RESP_ENCODING_CONSTANTS.LENGTH:
-		err = r.parseArray()
 	case RESP_ENCODING_CONSTANTS.BULK_STRING:
-		err = r.parseBulkString()
+		result, err = r.parseBulkString()
 	case RESP_ENCODING_CONSTANTS.ERROR,
 		RESP_ENCODING_CONSTANTS.STRING,
 		RESP_ENCODING_CONSTANTS.INTEGER:
-		err = r.parsePrimitiveData(enc)
+		result, err = r.parsePrimitiveData(enc)
 	default:
 		err = errors.New("invalid input")
 	}
 
-	return err
+	return result, err
 }
 
-func (r *RespReader) parseArray() error {
+func (r *RespReader) parseArray() (result []ParsedCmd, err error) {
 	length, err := r.parseInteger()
 
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	result = []ParsedCmd{}
 
 	for i := 0; i < length; i++ {
 		encoding, err := r.reader.ReadByte()
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		if err := r.parseByEncoding(string(encoding)); err != nil {
-			return err
+		parsed, err := r.parseByEncoding(string(encoding))
+
+		if err != nil {
+			return nil, err
 		}
+
+		result = append(result, parsed)
 	}
 
-	return nil
+	return result, err
 }
-func (r *RespReader) parseBulkString() error {
+func (r *RespReader) parseBulkString() (ParsedCmd, error) {
 	length, err := r.parseInteger()
 
 	if err != nil {
-		return err
+		fmt.Println("INT ERROR", err)
+		return ParsedCmd{}, err
 	}
 
 	value, err := r.readValueByNOfBytes(length)
 
 	if err != nil {
-		return err
+		fmt.Println("readValueByNOfBytes ERROR", err)
+
+		return ParsedCmd{}, err
 	}
 
-	r.result = append(r.result, ParsedCmd{ValueType: RESP_ENCODING_CONSTANTS.BULK_STRING, Value: string(value)})
+	if err := r.skipSeparator(); err != nil {
+		fmt.Println("skipSeparator ERROR", err)
 
-	return nil
+		return ParsedCmd{}, err
+	}
+
+	return ParsedCmd{ValueType: RESP_ENCODING_CONSTANTS.BULK_STRING, Value: string(value)}, nil
 }
 
-func (r *RespReader) parsePrimitiveData(enc string) error {
+func (r *RespReader) parsePrimitiveData(enc string) (ParsedCmd, error) {
 	line, _, err := r.readLineUntilSeperator()
 
 	if err != nil {
-		return err
+		return ParsedCmd{}, err
 	}
 
-	r.result = append(r.result, ParsedCmd{ValueType: enc, Value: string(line)})
-
-	return nil
+	return ParsedCmd{ValueType: enc, Value: string(line)}, nil
 }
 
 func (r *RespReader) parseInteger() (int, error) {
@@ -135,10 +165,6 @@ func (r *RespReader) readValueByNOfBytes(bytesToRead int) ([]byte, error) {
 	}
 
 	if _, err := r.reader.Discard(bytesToRead); err != nil {
-		return nil, err
-	}
-
-	if err := r.skipSeparator(); err != nil {
 		return nil, err
 	}
 

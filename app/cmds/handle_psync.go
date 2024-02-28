@@ -54,7 +54,7 @@ func (h *PsyncHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 
 	encodingCmd := resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.BULK_STRING, string(decoded))
 
-	// exception
+	// exception, no clrf at the end
 	encodingCmd = strings.TrimSuffix(encodingCmd, resp.RESP_ENCODING_CONSTANTS.SEPARATOR)
 
 	return []string{ackCmd, encodingCmd}
