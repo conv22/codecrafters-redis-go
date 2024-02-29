@@ -25,13 +25,11 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 	processor.handlers[CMD_KEYS] = newKeysHandler(storage)
 	processor.handlers[CMD_INFO] = newInfoHandler(replication)
 
-	if replication.IsReplica() {
-		// ignore set commands from other clients.
-		if isMasterConn {
-			processor.handlers[CMD_SET] = newSetHandler(storage)
-			processor.handlers[CMD_REPLCONF] = newReplConfHandler(config)
-			processor.postHandlers[CMD_REPLCONF] = defaultPostHandler
-		}
+	// ignore set commands from other clients.
+	if isMasterConn {
+		processor.handlers[CMD_SET] = newSetHandler(storage)
+		processor.handlers[CMD_REPLCONF] = newReplConfHandler(config)
+		processor.postHandlers[CMD_REPLCONF] = defaultPostHandler
 	} else {
 		processor.handlers[CMD_SET] = newSetHandler(storage)
 		processor.postHandlers[CMD_SET] = propagationPostHandler
