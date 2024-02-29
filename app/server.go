@@ -27,10 +27,8 @@ func main() {
 			return
 		}
 		reader := resp.NewReader(masterConn)
-		doneCh := make(chan struct{})
 
-		go handshake.New(serverContext.cfg, serverContext.inMemoryStorage, masterConn, reader, doneCh).HandleHandshake()
-		<-doneCh
+		handshake.New(serverContext.cfg, serverContext.inMemoryStorage, masterConn, reader).HandleHandshake()
 		go handleConnection(masterConn, nil, reader, true)
 	} else {
 		replicationChannel = make(chan []byte)
@@ -72,8 +70,6 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *res
 			continue
 		}
 
-		fmt.Println(parsed)
-
 		output := cmdProcessor.ProcessCmd(parsed, conn)
 
 		if isMasterConn {
@@ -94,7 +90,7 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *res
 }
 
 func handleSyncWithReplicas(replicationChannel chan []byte) {
-	for {
-		serverContext.replicationStore.PopulateCmdToReplicas(<-replicationChannel)
+	for cmd := range replicationChannel {
+		serverContext.replicationStore.PopulateCmdToReplicas(cmd)
 	}
 }

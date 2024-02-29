@@ -18,17 +18,15 @@ type handshake struct {
 	respReader      *resp.RespReader
 	inMemoryStorage *storage.StorageCollection
 	masterConn      net.Conn
-	doneCh          chan struct{}
 }
 
-func New(cfg *config.Config, inMemoryStorage *storage.StorageCollection, masterConn net.Conn, respReader *resp.RespReader, doneCh chan struct{}) *handshake {
+func New(cfg *config.Config, inMemoryStorage *storage.StorageCollection, masterConn net.Conn, respReader *resp.RespReader) *handshake {
 	return &handshake{
 		cfg:             cfg,
 		rdbReader:       rdb.NewRdb(),
 		inMemoryStorage: inMemoryStorage,
 		masterConn:      masterConn,
 		respReader:      respReader,
-		doneCh:          doneCh,
 	}
 }
 
@@ -41,8 +39,6 @@ func (h *handshake) HandleHandshake() error {
 		}
 		fmt.Printf("%d handshake step complete \n", i+1)
 	}
-
-	h.doneCh <- struct{}{}
 
 	return nil
 }
