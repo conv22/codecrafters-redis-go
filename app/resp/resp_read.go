@@ -2,19 +2,19 @@ package resp
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"strconv"
 )
 
-func (r *RespReader) HandleRead() ([]ParsedCmd, error) {
-	encoding, err := r.reader.ReadByte()
+func (r *RespReader) HandleRead() ([]ParsedCmd, int, error) {
+	r.bytesRead = 0
+	encoding, err := r.readByteAndIncCounter()
 
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return []ParsedCmd{}, nil
+			return []ParsedCmd{}, 0, nil
 		}
-		return nil, err
+		return nil, 0, err
 	}
 
 	encStr := string(encoding)
@@ -23,24 +23,24 @@ func (r *RespReader) HandleRead() ([]ParsedCmd, error) {
 		result, err := r.parseArray()
 
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 
-		return result, nil
+		return result, r.bytesRead, nil
 	}
 
 	result, err := r.parseByEncoding(encStr)
 
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return []ParsedCmd{result}, nil
-
+	return []ParsedCmd{result}, r.bytesRead, nil
 }
 
 func (r *RespReader) HandleReadRdbFile() ([]byte, error) {
-	_, err := r.reader.ReadByte()
+	r.bytesRead = 0
+	_, err := r.readByteAndIncCounter()
 
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (r *RespReader) HandleReadRdbFile() ([]byte, error) {
 		return nil, err
 	}
 
-	return r.readValueByNOfBytes(fileLength)
+	return r.readValueByNOfBytesAndIncCounter(fileLength)
 }
 
 func (r *RespReader) parseByEncoding(enc string) (result ParsedCmd, err error) {
@@ -80,7 +80,7 @@ func (r *RespReader) parseArray() (result []ParsedCmd, err error) {
 	result = []ParsedCmd{}
 
 	for i := 0; i < length; i++ {
-		encoding, err := r.reader.ReadByte()
+		encoding, err := r.readByteAndIncCounter()
 
 		if err != nil {
 			return nil, err
@@ -101,21 +101,16 @@ func (r *RespReader) parseBulkString() (ParsedCmd, error) {
 	length, err := r.parseInteger()
 
 	if err != nil {
-		fmt.Println("INT ERROR", err)
 		return ParsedCmd{}, err
 	}
 
-	value, err := r.readValueByNOfBytes(length)
+	value, err := r.readValueByNOfBytesAndIncCounter(length)
 
 	if err != nil {
-		fmt.Println("readValueByNOfBytes ERROR", err)
-
 		return ParsedCmd{}, err
 	}
 
-	if err := r.skipSeparator(); err != nil {
-		fmt.Println("skipSeparator ERROR", err)
-
+	if err := r.skipSeparatorAndIncCounter(); err != nil {
 		return ParsedCmd{}, err
 	}
 
@@ -123,7 +118,7 @@ func (r *RespReader) parseBulkString() (ParsedCmd, error) {
 }
 
 func (r *RespReader) parsePrimitiveData(enc string) (ParsedCmd, error) {
-	line, _, err := r.readLineUntilSeperator()
+	line, err := r.readLineUntilSeperator()
 
 	if err != nil {
 		return ParsedCmd{}, err
@@ -133,7 +128,7 @@ func (r *RespReader) parsePrimitiveData(enc string) (ParsedCmd, error) {
 }
 
 func (r *RespReader) parseInteger() (int, error) {
-	line, _, err := r.readLineUntilSeperator()
+	line, err := r.readLineUntilSeperator()
 
 	if err != nil {
 		return 0, err
@@ -150,34 +145,42 @@ func (r *RespReader) parseInteger() (int, error) {
 	return intValue, nil
 }
 
-func (r *RespReader) skipSeparator() error {
-	if _, err := r.reader.Discard(len([]byte(RESP_ENCODING_CONSTANTS.SEPARATOR))); err != nil {
+func (r *RespReader) skipSeparatorAndIncCounter() error {
+	bytesSkip, err := r.reader.Discard(len((RESP_ENCODING_CONSTANTS.SEPARATOR)))
+
+	if err != nil {
 		return err
 	}
+
+	r.bytesRead += bytesSkip
 
 	return nil
 }
 
-func (r *RespReader) readValueByNOfBytes(bytesToRead int) ([]byte, error) {
+func (r *RespReader) readValueByNOfBytesAndIncCounter(bytesToRead int) ([]byte, error) {
 	data, err := r.reader.Peek(bytesToRead)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := r.reader.Discard(bytesToRead); err != nil {
+	bytesSkip, err := r.reader.Discard(bytesToRead)
+
+	if err != nil {
 		return nil, err
 	}
+
+	r.bytesRead += bytesSkip
 
 	return data, nil
 }
 
-func (r *RespReader) readLineUntilSeperator() (line []byte, bytesRead int, err error) {
+func (r *RespReader) readLineUntilSeperator() (line []byte, err error) {
 	line = make([]byte, 0)
 	n := 0
 	for {
-		b, err := r.reader.ReadByte()
+		b, err := r.readByteAndIncCounter()
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		n += 1
 		line = append(line, b)
@@ -185,5 +188,16 @@ func (r *RespReader) readLineUntilSeperator() (line []byte, bytesRead int, err e
 			break
 		}
 	}
-	return line[: len(line)-2 : n], n, nil
+
+	return line[: len(line)-2 : n], nil
+}
+
+func (r *RespReader) readByteAndIncCounter() (byte, error) {
+	b, err := r.reader.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+	r.bytesRead += 1
+	return b, nil
+
 }

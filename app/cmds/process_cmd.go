@@ -1,7 +1,6 @@
 package cmds
 
 import (
-	"fmt"
 	"net"
 	"strings"
 
@@ -12,7 +11,9 @@ import (
 )
 
 func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Config, replication *replication.ReplicationStore, conn net.Conn, isMasterConn bool) *RespCmdProcessor {
-	processor := &RespCmdProcessor{}
+	processor := &RespCmdProcessor{
+		isMasterConn: isMasterConn,
+	}
 
 	processor.handlers = make(map[string]CommandHandler)
 	processor.postHandlers = make(map[string]PostHandler)
@@ -23,19 +24,20 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 	processor.handlers[CMD_CONFIG] = newConfigHandler(config)
 	processor.handlers[CMD_KEYS] = newKeysHandler(storage)
 	processor.handlers[CMD_INFO] = newInfoHandler(replication)
-	processor.handlers[CMD_REPLCONF] = newReplConfHandler(replication, conn)
 
 	if replication.IsReplica() {
 		// ignore set commands from other clients.
 		if isMasterConn {
-			fmt.Println("cmd from master")
 			processor.handlers[CMD_SET] = newSetHandler(storage)
-			processor.postHandlers[CMD_SET] = noResponsePostHandler
+			processor.handlers[CMD_REPLCONF] = newReplConfHandler(config)
+			processor.postHandlers[CMD_REPLCONF] = defaultPostHandler
 		}
 	} else {
 		processor.handlers[CMD_SET] = newSetHandler(storage)
 		processor.postHandlers[CMD_SET] = propagationPostHandler
 		processor.handlers[CMD_PSYNC] = newPsyncHandler(replication, conn)
+		processor.handlers[CMD_REPLCONF] = newMasterReplConfHandler(replication, conn)
+
 	}
 
 	return processor
@@ -60,7 +62,11 @@ func (processor *RespCmdProcessor) ProcessCmd(parsedData []resp.ParsedCmd, conn 
 	postHandler, ok := processor.postHandlers[firstCmd]
 
 	if !ok {
-		postHandler = defaultPostHandler
+		if processor.isMasterConn {
+			postHandler = noResponsePostHandler
+		} else {
+			postHandler = defaultPostHandler
+		}
 	}
 
 	for _, item := range handler.processCmd(cmds) {

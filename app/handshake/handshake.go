@@ -183,7 +183,7 @@ func (h *handshake) verifyOKResponse() error {
 }
 
 func (h *handshake) handleReadFromConnection() ([]resp.ParsedCmd, error) {
-	parsed, err := h.respReader.HandleRead()
+	parsed, _, err := h.respReader.HandleRead()
 
 	if err != nil {
 		return nil, err

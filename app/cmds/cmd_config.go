@@ -14,6 +14,7 @@ type PostHandler = func(item string, cmd []resp.ParsedCmd) ProcessCmdResult
 type RespCmdProcessor struct {
 	handlers     map[string]CommandHandler
 	postHandlers map[string]PostHandler
+	isMasterConn bool
 }
 
 const (

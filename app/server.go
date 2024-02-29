@@ -66,7 +66,7 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *res
 
 	for {
 
-		parsed, err := reader.HandleRead()
+		parsed, bytesRead, err := reader.HandleRead()
 
 		if err != nil || len(parsed) == 0 {
 			continue
@@ -76,10 +76,12 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *res
 
 		output := cmdProcessor.ProcessCmd(parsed, conn)
 
+		if isMasterConn {
+			serverContext.cfg.IncOffset(int64(bytesRead))
+		}
+
 		for _, item := range output {
 			if replicationChannel != nil && item.IsPropagate {
-				fmt.Print("POPULATE", item.Answer)
-
 				replicationChannel <- item.BytesInput
 			}
 

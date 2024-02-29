@@ -112,7 +112,7 @@ func TestParseRESPV2(t *testing.T) {
 			reader := strings.NewReader(test.input)
 			respReader := NewReader(reader)
 
-			output, err := respReader.HandleRead()
+			output, _, err := respReader.HandleRead()
 
 			if test.expectError {
 				if err == nil {

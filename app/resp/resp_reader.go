@@ -11,7 +11,8 @@ type ParsedCmd struct {
 }
 
 type RespReader struct {
-	reader *bufio.Reader
+	reader    *bufio.Reader
+	bytesRead int
 }
 
 func NewReader(reader io.Reader) *RespReader {

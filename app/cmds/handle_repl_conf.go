@@ -1,43 +1,29 @@
 package cmds
 
 import (
-	"net"
+	"strconv"
 
-	"github.com/codecrafters-io/redis-starter-go/app/replication"
+	"github.com/codecrafters-io/redis-starter-go/app/config"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
-// todo, divide into master and replica version
 type ReplConfHandler struct {
-	replicationStore *replication.ReplicationStore
-	conn             net.Conn
+	cfg *config.Config
 }
 
-func newReplConfHandler(replicationStore *replication.ReplicationStore, conn net.Conn) *ReplConfHandler {
+func newReplConfHandler(cfg *config.Config) *ReplConfHandler {
 	return &ReplConfHandler{
-		replicationStore: replicationStore,
-		conn:             conn,
+		cfg: cfg,
 	}
 }
 
 func (h *ReplConfHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
-	replicationAddress, err := replication.GetReplicationAddress(h.conn)
-	if err != nil {
-		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "invalid connection address")}
-	}
-
 	firstCmd := parsedResult[0].Value
-	argument := parsedResult[1].Value
-
 	switch firstCmd {
 	case CMD_GETACK:
-		return h.handleGetAck(replicationAddress)
-
-	case "listening-port":
-		return h.handleListeningPort(replicationAddress, argument, h.conn)
-
+		return h.handleGetAck()
 	default:
-		return h.handleUnknownReplConf(replicationAddress)
+		return h.handleUnknownReplConf()
 	}
 }
 
@@ -45,7 +31,7 @@ func (h *ReplConfHandler) minArgs() int {
 	return 2
 }
 
-func (h *ReplConfHandler) handleGetAck(replicationAddress string) []string {
+func (h *ReplConfHandler) handleGetAck() []string {
 	return []string{resp.HandleEncodeSliceList([]resp.SliceEncoding{
 		{
 			S:        CMD_REPLCONF,
@@ -56,27 +42,12 @@ func (h *ReplConfHandler) handleGetAck(replicationAddress string) []string {
 			Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING,
 		},
 		{
-			S:        "0",
+			S:        strconv.FormatInt(h.cfg.GetOffset(), 10),
 			Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING,
 		},
 	})}
 }
 
-func (h *ReplConfHandler) handleListeningPort(replicationAddress, listeningPort string, conn net.Conn) []string {
-	client, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
-	if !ok {
-		client = replication.NewReplicaClient(listeningPort)
-		h.replicationStore.AppendClient(replicationAddress, client)
-	}
-	client.AppendConnection(conn)
-	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, CMD_RESPONSE_OK)}
-}
-
-func (h *ReplConfHandler) handleUnknownReplConf(replicationAddress string) []string {
-	_, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
-	if !ok {
-		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "invalid handshake")}
-	}
-
+func (h *ReplConfHandler) handleUnknownReplConf() []string {
 	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, CMD_RESPONSE_OK)}
 }
