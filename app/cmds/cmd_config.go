@@ -32,6 +32,7 @@ const (
 	CMD_GETACK               = "GETACK"
 	CMD_RESPONSE_OK          = "OK"
 	CMD_RESPONSE_PONG        = "PONG"
+	CMD_WAIT                 = "WAIT"
 )
 
 type ProcessCmdResult struct {

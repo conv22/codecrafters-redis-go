@@ -66,6 +66,10 @@ func (r *ReplicationStore) HasReplicas() bool {
 	return len(r.replicasMap) > 0
 }
 
+func (r *ReplicationStore) NumberOfReplicas() int {
+	return len(r.replicasMap)
+}
+
 func (r *ReplicationStore) AppendClient(address string, client *ReplicaClient) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
