@@ -67,7 +67,11 @@ func (r *ReplicationStore) HasReplicas() bool {
 }
 
 func (r *ReplicationStore) NumberOfReplicas() int {
-	return len(r.replicasMap)
+	var lenght int
+	for _, replica := range r.replicasMap {
+		lenght += len(replica.connections)
+	}
+	return lenght
 }
 
 func (r *ReplicationStore) AppendClient(address string, client *ReplicaClient) {
