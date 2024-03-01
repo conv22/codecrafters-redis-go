@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/replication"
@@ -42,7 +43,13 @@ func (h *PsyncHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	}
 
 	offset, replicationId := parsedResult[0], parsedResult[1]
-	replica.SetOffsetAndReplicationId(offset.Value, replicationId.Value)
+
+	offsetInt, err := h.getOffset(offset.Value)
+
+	if err != nil {
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "Invalid offset specified")}
+	}
+	replica.SetOffsetAndReplicationId(offsetInt, replicationId.Value)
 
 	decoded, err := hex.DecodeString(EMPTY_DB_HEX)
 
@@ -58,4 +65,13 @@ func (h *PsyncHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	encodingCmd = strings.TrimSuffix(encodingCmd, resp.RESP_ENCODING_CONSTANTS.SEPARATOR)
 
 	return []string{ackCmd, encodingCmd}
+}
+
+func (h *PsyncHandler) getOffset(offset string) (int64, error) {
+	if offset == "?" {
+		return 0, nil
+	}
+
+	return strconv.ParseInt(offset, 10, 64)
+
 }

@@ -4,6 +4,8 @@ import (
 	"flag"
 	"net"
 	"sync"
+
+	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
 const (
@@ -68,8 +70,8 @@ func (r *ReplicationStore) HasReplicas() bool {
 
 func (r *ReplicationStore) NumberOfReplicas() int {
 	var lenght int
-	for _, replica := range r.replicasMap {
-		lenght += len(replica.connections)
+	for range r.replicasMap {
+		lenght += 1
 	}
 	return lenght
 }
@@ -84,21 +86,52 @@ func (r *ReplicationStore) PopulateCmdToReplicas(cmd []byte) {
 	r.queueMu.Lock()
 	defer r.queueMu.Unlock()
 	var wg sync.WaitGroup
+	wg.Add(len(r.replicasMap))
 	for _, replica := range r.replicasMap {
-		replica.mu.Lock()
-		wg.Add(len(replica.connections))
-		for _, conn := range replica.connections {
-			go func(conn net.Conn) {
-				defer wg.Done()
-				conn.Write(cmd)
-			}(conn)
-		}
-		replica.mu.Unlock()
+		go func(replica *ReplicaClient) {
+			replica.mu.Lock()
+			defer replica.mu.Unlock()
+			defer wg.Done()
+			replica.PropagateCmd(cmd)
+
+		}(replica)
+
 	}
 	wg.Wait()
 }
+
+func (r *ReplicationStore) GetAckFromReplicas() {
+	cmd := []byte(resp.HandleEncodeSliceList([]resp.SliceEncoding{
+		{
+			S:        "REPLCONF",
+			Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING,
+		},
+		{
+			S:        "GETACK",
+			Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING,
+		},
+		{
+			S:        "*",
+			Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING,
+		},
+	}))
+	r.PopulateCmdToReplicas(cmd)
+}
+
+func (r *ReplicationStore) GetNumOfAckReplicas() int {
+	num := 0
+
+	for _, replica := range r.replicasMap {
+		if replica.expectedOffset == replica.Offset {
+			num += 1
+		}
+	}
+
+	return num
+}
+
 func GetReplicationAddress(conn net.Conn) (string, error) {
-	masterLocalAddr := conn.LocalAddr().String()
+	masterLocalAddr := conn.RemoteAddr().String()
 	host, port, err := net.SplitHostPort(masterLocalAddr)
 	if err != nil {
 		return "", err

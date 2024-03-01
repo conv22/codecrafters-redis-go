@@ -31,6 +31,8 @@ func (collection *StorageCollection) SetStorageById(id storageId, storage *Stora
 }
 
 func (collection *StorageCollection) GetCurrentStorage() *Storage {
+	collection.mu.Lock()
+	defer collection.mu.Unlock()
 	storage, ok := collection.Storages[collection.CurrStorageId]
 
 	if !ok {

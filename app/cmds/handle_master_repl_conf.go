@@ -31,7 +31,8 @@ func (h *MasterReplConfHandler) processCmd(parsedResult []resp.ParsedCmd) []stri
 	switch firstCmd {
 	case "listening-port":
 		return h.handleListeningPort(replicationAddress, argument, h.conn)
-
+	case CMD_RESPONSE_ACK:
+		return h.handleAck(replicationAddress, argument, h.conn)
 	default:
 		return h.handleUnknownReplConf(replicationAddress)
 	}
@@ -41,13 +42,16 @@ func (h *MasterReplConfHandler) minArgs() int {
 	return 2
 }
 
+func (h *MasterReplConfHandler) handleAck(replicationAddress, offset string, conn net.Conn) []string {
+	return []string{}
+}
+
 func (h *MasterReplConfHandler) handleListeningPort(replicationAddress, listeningPort string, conn net.Conn) []string {
 	client, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
 	if !ok {
-		client = replication.NewReplicaClient(listeningPort)
+		client = replication.NewReplicaClient(listeningPort, conn)
 		h.replicationStore.AppendClient(replicationAddress, client)
 	}
-	client.AppendConnection(conn)
 	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, CMD_RESPONSE_OK)}
 }
 
