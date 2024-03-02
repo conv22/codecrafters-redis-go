@@ -24,7 +24,7 @@ func (h *TypeHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	value, ok := h.storage.GetCurrentStorage().Get(key)
 
 	if !ok {
-		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, storage.NoneType)}
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, storage.NONE_TYPE)}
 	}
 
 	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, value.Type)}

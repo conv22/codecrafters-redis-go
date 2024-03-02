@@ -20,7 +20,7 @@ func (rdb *Rdb) readObject(encoding byte, key string, currStorage *storage.Stora
 			ExpiryMs: rdb.currItemExpiryTime,
 			Value:    value,
 			Encoding: encoding,
-			Type:     storage.StringType,
+			Type:     storage.STRING_TYPE,
 		})
 
 	}

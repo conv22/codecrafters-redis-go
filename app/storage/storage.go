@@ -9,9 +9,46 @@ type storageKey = string
 type storageId = uint8
 
 const (
-	StringType = "string"
-	NoneType   = "none"
+	STRING_TYPE = "string"
+	NONE_TYPE   = "none"
+	STREAM      = "stream"
 )
+
+type StreamEntry struct {
+	ID        string
+	KeyValues map[string]interface{}
+	mu        sync.Mutex
+}
+
+func (e *StreamEntry) AddEntry(key string, value interface{}) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.KeyValues[key] = value
+}
+
+func NewStreamEntry(id string) *StreamEntry {
+	return &StreamEntry{
+		ID:        id,
+		KeyValues: map[string]interface{}{},
+	}
+}
+
+type Stream struct {
+	mu      sync.Mutex
+	Entries []*StreamEntry
+}
+
+func (s *Stream) AddEntry(entry *StreamEntry) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Entries = append(s.Entries, entry)
+}
+
+func NewStream() *Stream {
+	return &Stream{
+		Entries: []*StreamEntry{},
+	}
+}
 
 type StorageItem struct {
 	Value    any
