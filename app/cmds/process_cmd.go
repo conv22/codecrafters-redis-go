@@ -24,6 +24,7 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 	processor.handlers[CMD_CONFIG] = newConfigHandler(config)
 	processor.handlers[CMD_KEYS] = newKeysHandler(storage)
 	processor.handlers[CMD_INFO] = newInfoHandler(replication)
+	processor.handlers[CMD_TYPE] = newTypeHandler(storage)
 
 	if isMasterConn {
 		processor.handlers[CMD_SET] = newSetHandler(storage)

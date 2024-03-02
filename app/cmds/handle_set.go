@@ -67,7 +67,7 @@ func (h *SetHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.NULL_BULK_STRING, "")}
 	}
 
-	h.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, ExpiryMs: expirationTime})
+	h.storage.SetItemToCurrentStorage(key, &storage.StorageItem{Value: value, ExpiryMs: expirationTime, Type: storage.StringType})
 
 	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, CMD_RESPONSE_OK)}
 

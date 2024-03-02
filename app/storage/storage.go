@@ -8,8 +8,14 @@ type storageKey = string
 
 type storageId = uint8
 
+const (
+	StringType = "string"
+	NoneType   = "none"
+)
+
 type StorageItem struct {
 	Value    any
+	Type     string
 	ExpiryMs int64
 	Encoding byte
 }
