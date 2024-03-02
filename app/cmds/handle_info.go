@@ -1,6 +1,8 @@
 package cmds
 
 import (
+	"strconv"
+
 	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
@@ -30,7 +32,7 @@ func (h *InfoHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 		data := []resp.SliceEncoding{
 			{S: "role:" + replication.Role, Encoding: resp.RESP_ENCODING_CONSTANTS.SEPARATOR},
 			{S: "master_replid:" + replication.MasterReplId, Encoding: resp.RESP_ENCODING_CONSTANTS.SEPARATOR},
-			{S: "master_repl_offset:" + replication.Offset, Encoding: resp.RESP_ENCODING_CONSTANTS.SEPARATOR},
+			{S: "master_repl_offset:" + strconv.FormatInt(h.replicationStore.GetOffset(), 10), Encoding: resp.RESP_ENCODING_CONSTANTS.SEPARATOR},
 		}
 
 		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.BULK_STRING, resp.HandleEncodeSlices(data))}

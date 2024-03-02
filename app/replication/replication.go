@@ -15,14 +15,16 @@ const (
 
 var replicaFlag = flag.String("replicaof", "", "The address for Master instance")
 
+type replicaAddress = string
+
 type ReplicationStore struct {
-	Role          string
-	Offset        string
-	MasterReplId  string
-	MasterAddress string
-	mu            sync.RWMutex
-	queueMu       sync.RWMutex
-	replicasMap   map[string]*ReplicaClient
+	Role            string
+	offset          int64
+	MasterReplId    string
+	MasterAddress   string
+	mu              sync.RWMutex
+	AckCompleteChan chan replicaAddress
+	ReplicasMap     map[replicaAddress]*ReplicaClient
 }
 
 func NewReplicationStore() *ReplicationStore {
@@ -33,11 +35,12 @@ func NewReplicationStore() *ReplicationStore {
 	masterAddress := determineMasterAddress()
 
 	return &ReplicationStore{
-		Role:          role,
-		MasterAddress: masterAddress,
-		MasterReplId:  "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb",
-		Offset:        "0",
-		replicasMap:   make(map[string]*ReplicaClient),
+		Role:            role,
+		MasterAddress:   masterAddress,
+		MasterReplId:    "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb",
+		offset:          0,
+		ReplicasMap:     make(map[replicaAddress]*ReplicaClient),
+		AckCompleteChan: make(chan replicaAddress),
 	}
 }
 
@@ -65,32 +68,24 @@ func (r *ReplicationStore) IsMaster() bool {
 }
 
 func (r *ReplicationStore) HasReplicas() bool {
-	return len(r.replicasMap) > 0
+	return len(r.ReplicasMap) > 0
 }
 
 func (r *ReplicationStore) NumberOfReplicas() int {
-	var lenght int
-	for range r.replicasMap {
-		lenght += 1
-	}
-	return lenght
+	return len(r.ReplicasMap)
 }
 
 func (r *ReplicationStore) AppendClient(address string, client *ReplicaClient) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.replicasMap[address] = client
+	r.ReplicasMap[address] = client
 }
 
 func (r *ReplicationStore) PopulateCmdToReplicas(cmd []byte) {
-	r.queueMu.Lock()
-	defer r.queueMu.Unlock()
 	var wg sync.WaitGroup
-	wg.Add(len(r.replicasMap))
-	for _, replica := range r.replicasMap {
+	for _, replica := range r.ReplicasMap {
+		wg.Add(1)
 		go func(replica *ReplicaClient) {
-			replica.mu.Lock()
-			defer replica.mu.Unlock()
 			defer wg.Done()
 			replica.PropagateCmd(cmd)
 
@@ -115,22 +110,38 @@ func (r *ReplicationStore) GetAckFromReplicas() {
 			Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING,
 		},
 	}))
-	r.PopulateCmdToReplicas(cmd)
+	var wg sync.WaitGroup
+	for _, replica := range r.ReplicasMap {
+		if replica.offset == replica.expectedOffset {
+			continue
+		}
+		wg.Add(1)
+		go func(replica *ReplicaClient) {
+			defer wg.Done()
+			replica.PropagateCmd(cmd)
+		}(replica)
+
+	}
+	wg.Wait()
 }
 
 func (r *ReplicationStore) GetNumOfAckReplicas() int {
-	num := 0
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	for _, replica := range r.replicasMap {
-		if replica.expectedOffset == replica.Offset {
-			num += 1
+	replicasInSync := 0
+
+	for _, replica := range r.ReplicasMap {
+
+		if replica.offset == replica.expectedOffset {
+			replicasInSync++
 		}
 	}
 
-	return num
+	return replicasInSync
 }
 
-func GetReplicationAddress(conn net.Conn) (string, error) {
+func GetReplicationAddress(conn net.Conn) (replicaAddress, error) {
 	masterLocalAddr := conn.RemoteAddr().String()
 	host, port, err := net.SplitHostPort(masterLocalAddr)
 	if err != nil {
@@ -140,26 +151,23 @@ func GetReplicationAddress(conn net.Conn) (string, error) {
 	return net.JoinHostPort(host, port), nil
 }
 
-func (r *ReplicationStore) GetReplicaClientByAddress(address string) (*ReplicaClient, bool) {
+func (r *ReplicationStore) GetReplicaClientByAddress(address replicaAddress) (*ReplicaClient, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	replica, hasReplica := r.replicasMap[address]
+	replica, hasReplica := r.ReplicasMap[address]
 
 	return replica, hasReplica
 }
 
-func (r *ReplicationStore) IsReplicaClient(conn net.Conn) bool {
-	connAddress, err := GetReplicationAddress(conn)
+func (r *ReplicationStore) IncOffset(inc int64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.offset += inc
+}
 
-	if err != nil {
-		return false
-	}
-
+func (r *ReplicationStore) GetOffset() int64 {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-
-	_, hasReplica := r.replicasMap[connAddress]
-
-	return hasReplica
+	return r.offset
 }

@@ -49,7 +49,7 @@ func (h *PsyncHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	if err != nil {
 		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "Invalid offset specified")}
 	}
-	replica.SetOffsetAndReplicationId(offsetInt, replicationId.Value)
+	replica.InitailizeOffsetAndReplId(offsetInt, replicationId.Value)
 
 	decoded, err := hex.DecodeString(EMPTY_DB_HEX)
 
@@ -57,7 +57,7 @@ func (h *PsyncHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 		return nil
 	}
 
-	ackCmd := resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, fmt.Sprintf("%s %s %s", CMD_RESPONSE_FULL_RESYNC, h.replicationStore.MasterReplId, h.replicationStore.Offset))
+	ackCmd := resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, fmt.Sprintf("%s %s %s", CMD_RESPONSE_FULL_RESYNC, h.replicationStore.MasterReplId, strconv.FormatInt(h.replicationStore.GetOffset(), 10)))
 
 	encodingCmd := resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.BULK_STRING, string(decoded))
 

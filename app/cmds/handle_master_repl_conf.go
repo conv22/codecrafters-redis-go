@@ -2,6 +2,7 @@ package cmds
 
 import (
 	"net"
+	"strconv"
 
 	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
@@ -43,13 +44,28 @@ func (h *MasterReplConfHandler) minArgs() int {
 }
 
 func (h *MasterReplConfHandler) handleAck(replicationAddress, offset string, conn net.Conn) []string {
+	client, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
+
+	if !ok {
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "Client doesn't exist")}
+	}
+
+	offsetInt, err := strconv.ParseInt(offset, 10, 64)
+
+	if err != nil {
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, "Offset is incorrect")}
+	}
+
+	h.replicationStore.AckCompleteChan <- replicationAddress
+	client.HandleAck(offsetInt)
+
 	return []string{}
 }
 
 func (h *MasterReplConfHandler) handleListeningPort(replicationAddress, listeningPort string, conn net.Conn) []string {
-	client, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
+	_, ok := h.replicationStore.GetReplicaClientByAddress(replicationAddress)
 	if !ok {
-		client = replication.NewReplicaClient(listeningPort, conn)
+		client := replication.NewReplicaClient(listeningPort, conn)
 		h.replicationStore.AppendClient(replicationAddress, client)
 	}
 	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.STRING, CMD_RESPONSE_OK)}

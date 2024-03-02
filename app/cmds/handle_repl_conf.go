@@ -3,17 +3,17 @@ package cmds
 import (
 	"strconv"
 
-	"github.com/codecrafters-io/redis-starter-go/app/config"
+	"github.com/codecrafters-io/redis-starter-go/app/replication"
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 )
 
 type ReplConfHandler struct {
-	cfg *config.Config
+	replicationStore *replication.ReplicationStore
 }
 
-func newReplConfHandler(cfg *config.Config) *ReplConfHandler {
+func newReplConfHandler(replicationStore *replication.ReplicationStore) *ReplConfHandler {
 	return &ReplConfHandler{
-		cfg: cfg,
+		replicationStore: replicationStore,
 	}
 }
 
@@ -42,7 +42,7 @@ func (h *ReplConfHandler) handleGetAck() []string {
 			Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING,
 		},
 		{
-			S:        strconv.FormatInt(h.cfg.GetOffset(), 10),
+			S:        strconv.FormatInt(h.replicationStore.GetOffset(), 10),
 			Encoding: resp.RESP_ENCODING_CONSTANTS.BULK_STRING,
 		},
 	})}

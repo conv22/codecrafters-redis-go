@@ -7,19 +7,17 @@ import (
 
 type ReplicaClient struct {
 	ReplicationId  string
-	Offset         int64
-	conn           net.Conn
 	expectedOffset int64
-	isOffsetInSync bool
+	offset         int64
+	conn           net.Conn
 	listeningPort  string
 	mu             sync.RWMutex
 }
 
 func (client *ReplicaClient) PropagateCmd(cmd []byte) {
-	defer func() {
-		client.expectedOffset += int64(len(cmd))
-		client.isOffsetInSync = false
-	}()
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.expectedOffset = client.expectedOffset + int64(len(cmd))
 	client.conn.Write(cmd)
 }
 
@@ -30,9 +28,16 @@ func NewReplicaClient(listeningPort string, conn net.Conn) *ReplicaClient {
 	}
 }
 
-func (client *ReplicaClient) SetOffsetAndReplicationId(offset int64, replicationId string) {
+func (client *ReplicaClient) HandleAck(newOffset int64) {
 	client.mu.Lock()
 	defer client.mu.Unlock()
-	client.Offset = offset
+	client.offset = newOffset
+}
+
+func (client *ReplicaClient) InitailizeOffsetAndReplId(offset int64, replicationId string) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.offset = offset
+	client.expectedOffset = offset
 	client.ReplicationId = replicationId
 }

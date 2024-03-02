@@ -73,7 +73,7 @@ func handleConnection(conn net.Conn, replicationChannel chan []byte, reader *res
 		output := cmdProcessor.ProcessCmd(parsed, conn)
 
 		if isMasterConn {
-			serverContext.cfg.IncOffset(int64(bytesRead))
+			serverContext.replicationStore.IncOffset(int64(bytesRead))
 		}
 
 		for _, item := range output {
