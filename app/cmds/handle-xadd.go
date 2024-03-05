@@ -45,7 +45,7 @@ func (h *XaddHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	if err != nil {
 		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, err.Error())}
 	}
-	streamEntries := storage.NewStreamEntry(id, currentStream, msTime, sqNumber)
+	streamEntries := storage.NewStreamEntry(msTime, sqNumber, currentStream)
 
 	for i := 0; i < len(entries); i += 2 {
 		if i+1 >= len(entries) {

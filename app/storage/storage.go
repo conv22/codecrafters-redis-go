@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -28,9 +29,9 @@ func (e *StreamEntry) AddEntry(key string, value interface{}) {
 	e.KeyValues[key] = value
 }
 
-func NewStreamEntry(id string, stream *Stream, msTime, sqNumber int64) *StreamEntry {
+func NewStreamEntry(msTime, sqNumber int64, stream *Stream) *StreamEntry {
 	return &StreamEntry{
-		ID:        id,
+		ID:        fmt.Sprintf("%d-%d", msTime, sqNumber),
 		MsTime:    msTime,
 		SqNumber:  sqNumber,
 		KeyValues: map[string]interface{}{},
