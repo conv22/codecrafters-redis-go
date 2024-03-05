@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -14,46 +13,6 @@ const (
 	NONE_TYPE   = "none"
 	STREAM      = "stream"
 )
-
-type StreamEntry struct {
-	ID        string
-	MsTime    int64
-	SqNumber  int64
-	KeyValues map[string]interface{}
-	mu        sync.Mutex
-}
-
-func (e *StreamEntry) AddEntry(key string, value interface{}) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.KeyValues[key] = value
-}
-
-func NewStreamEntry(msTime, sqNumber int64, stream *Stream) *StreamEntry {
-	return &StreamEntry{
-		ID:        fmt.Sprintf("%d-%d", msTime, sqNumber),
-		MsTime:    msTime,
-		SqNumber:  sqNumber,
-		KeyValues: map[string]interface{}{},
-	}
-}
-
-type Stream struct {
-	mu      sync.Mutex
-	Entries []*StreamEntry
-}
-
-func (s *Stream) AddEntry(entry *StreamEntry) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.Entries = append(s.Entries, entry)
-}
-
-func NewStream() *Stream {
-	return &Stream{
-		Entries: []*StreamEntry{},
-	}
-}
 
 type StorageItem struct {
 	Value    any
