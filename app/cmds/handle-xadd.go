@@ -1,9 +1,17 @@
 package cmds
 
 import (
+	"errors"
+	"strconv"
+	"strings"
+
 	"github.com/codecrafters-io/redis-starter-go/app/resp"
 	"github.com/codecrafters-io/redis-starter-go/app/storage"
 )
+
+var errTooSmallStreamId = errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+var errStreamIdZero = errors.New("ERR The ID specified in XADD must be greater than 0-0")
+var errStreamIdFormat = errors.New("ERR the ID specified in XADD must be in  milliseconds-sqnumber format")
 
 type XaddHandler struct {
 	storage *storage.StorageCollection
@@ -33,7 +41,12 @@ func (h *XaddHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	}
 
 	// new or find, todo
-	streamEntries := storage.NewStreamEntry(id)
+	msTime, sqNumber, err := GetParsedStreamId(id, currentStream)
+	if err != nil {
+		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, err.Error())}
+	}
+	streamEntries := storage.NewStreamEntry(id, currentStream, msTime, sqNumber)
+
 	for i := 0; i < len(entries); i += 2 {
 		if i+1 >= len(entries) {
 			break
@@ -56,4 +69,34 @@ func (h *XaddHandler) getNewStreamEntryId(id string) string {
 		return id
 	}
 	return id
+}
+
+func GetParsedStreamId(id string, stream *storage.Stream) (msTime, sqNumber int64, err error) {
+	split := strings.Split(id, "-")
+	if len(split) != 2 {
+		return 0, 0, errStreamIdFormat
+	}
+	msTime, err = strconv.ParseInt(split[0], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	sqNumber, err = strconv.ParseInt(split[1], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if msTime == 0 && sqNumber == 0 {
+		return 0, 0, errStreamIdZero
+	}
+	if len(stream.Entries) == 0 {
+		return msTime, sqNumber, nil
+	}
+
+	lastEntry := stream.Entries[len(stream.Entries)-1]
+
+	if lastEntry.MsTime > msTime || lastEntry.MsTime == msTime && lastEntry.SqNumber >= sqNumber {
+		return 0, 0, errTooSmallStreamId
+	}
+
+	return msTime, sqNumber, nil
 }

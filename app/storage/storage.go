@@ -16,6 +16,8 @@ const (
 
 type StreamEntry struct {
 	ID        string
+	MsTime    int64
+	SqNumber  int64
 	KeyValues map[string]interface{}
 	mu        sync.Mutex
 }
@@ -26,9 +28,11 @@ func (e *StreamEntry) AddEntry(key string, value interface{}) {
 	e.KeyValues[key] = value
 }
 
-func NewStreamEntry(id string) *StreamEntry {
+func NewStreamEntry(id string, stream *Stream, msTime, sqNumber int64) *StreamEntry {
 	return &StreamEntry{
 		ID:        id,
+		MsTime:    msTime,
+		SqNumber:  sqNumber,
 		KeyValues: map[string]interface{}{},
 	}
 }
