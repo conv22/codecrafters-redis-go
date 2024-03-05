@@ -104,7 +104,7 @@ func getMsAndSqFromId(id string, stream *storage.Stream) (msTime, sqNumber int64
 	if err != nil {
 		return 0, 0, err
 	}
-	sqNumber, err = getSqNumber(split[1], stream)
+	sqNumber, err = getSqNumber(split[1], msTime, stream)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -113,10 +113,14 @@ func getMsAndSqFromId(id string, stream *storage.Stream) (msTime, sqNumber int64
 
 }
 
-func getSqNumber(sq string, stream *storage.Stream) (sqNumber int64, err error) {
+func getSqNumber(sq string, msTime int64, stream *storage.Stream) (sqNumber int64, err error) {
 	if sq == "*" {
 		if len(stream.Entries) == 0 {
-			return 0, nil
+			if msTime == 0 {
+				return 1, nil
+			} else {
+				return 0, nil
+			}
 		}
 		lastEntry := stream.Entries[len(stream.Entries)-1]
 		return lastEntry.SqNumber + 1, nil
