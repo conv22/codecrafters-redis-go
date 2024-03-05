@@ -41,7 +41,7 @@ func (h *XaddHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 	}
 
 	// new or find, todo
-	msTime, sqNumber, err := GetParsedStreamId(id, currentStream)
+	msTime, sqNumber, err := getParsedStreamId(id, currentStream)
 	if err != nil {
 		return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.ERROR, err.Error())}
 	}
@@ -71,18 +71,11 @@ func (h *XaddHandler) getNewStreamEntryId(id string) string {
 	return id
 }
 
-func GetParsedStreamId(id string, stream *storage.Stream) (msTime, sqNumber int64, err error) {
-	split := strings.Split(id, "-")
-	if len(split) != 2 {
-		return 0, 0, errStreamIdFormat
-	}
-	msTime, err = strconv.ParseInt(split[0], 10, 64)
+func getParsedStreamId(id string, stream *storage.Stream) (msTime, sqNumber int64, err error) {
+	msTime, sqNumber, err = getMsAndSqFromId(id, stream)
+
 	if err != nil {
-		return 0, 0, err
-	}
-	sqNumber, err = strconv.ParseInt(split[1], 10, 64)
-	if err != nil {
-		return 0, 0, err
+		return 0, 0, errStreamIdZero
 	}
 
 	if msTime == 0 && sqNumber == 0 {
@@ -99,4 +92,41 @@ func GetParsedStreamId(id string, stream *storage.Stream) (msTime, sqNumber int6
 	}
 
 	return msTime, sqNumber, nil
+}
+
+func getMsAndSqFromId(id string, stream *storage.Stream) (msTime, sqNumber int64, err error) {
+	split := strings.Split(id, "-")
+	if len(split) != 2 {
+		return 0, 0, errStreamIdFormat
+	}
+
+	msTime, err = strconv.ParseInt(split[0], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+	sqNumber, err = getSqNumber(split[1], stream)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return msTime, sqNumber, nil
+
+}
+
+func getSqNumber(sq string, stream *storage.Stream) (sqNumber int64, err error) {
+	if sq == "*" {
+		if len(stream.Entries) == 0 {
+			return 0, nil
+		}
+		lastEntry := stream.Entries[len(stream.Entries)-1]
+		return lastEntry.SqNumber + 1, nil
+
+	}
+	// explicit
+	sqNumber, err = strconv.ParseInt(sq, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return sqNumber, nil
 }
