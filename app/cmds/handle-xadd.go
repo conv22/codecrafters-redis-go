@@ -61,7 +61,7 @@ func (h *XaddHandler) processCmd(parsedResult []resp.ParsedCmd) []string {
 		Value: currentStream,
 	})
 
-	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.BULK_STRING, id)}
+	return []string{resp.HandleEncode(resp.RESP_ENCODING_CONSTANTS.BULK_STRING, streamEntries.ID)}
 }
 func (h *XaddHandler) getNewStreamEntryId(id string) string {
 	if id == "*" {
