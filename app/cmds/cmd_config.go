@@ -35,6 +35,7 @@ const (
 	CMD_WAIT                 = "WAIT"
 	CMD_TYPE                 = "TYPE"
 	CMD_XADD                 = "XADD"
+	CMD_XRANGE               = "XRANGE"
 )
 
 type ProcessCmdResult struct {

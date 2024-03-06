@@ -34,6 +34,7 @@ func NewRespCmdProcessor(storage *storage.StorageCollection, config *config.Conf
 		processor.handlers[CMD_SET] = newSetHandler(storage)
 		processor.postHandlers[CMD_SET] = propagationPostHandler
 		processor.handlers[CMD_XADD] = newXaddHandler(storage)
+		processor.handlers[CMD_XRANGE] = newXRangeHandler(storage)
 		processor.postHandlers[CMD_XADD] = propagationPostHandler
 		processor.handlers[CMD_PSYNC] = newPsyncHandler(replication, conn)
 		processor.handlers[CMD_REPLCONF] = newMasterReplConfHandler(replication, conn)

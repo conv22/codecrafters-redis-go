@@ -11,7 +11,7 @@ type storageId = uint8
 const (
 	STRING_TYPE = "string"
 	NONE_TYPE   = "none"
-	STREAM      = "stream"
+	STREAM_TYPE = "stream"
 )
 
 type StorageItem struct {
